@@ -1,0 +1,52 @@
+{
+  "name": "ai-reviewer-jenkins",
+  "version": "1.0.0",
+  "description": "AI-powered code review for Jenkins using @ai-reviewer/core",
+  "main": "dist/jenkins-reviewer.js",
+  "bin": {
+    "ai-reviewer": "dist/jenkins-reviewer.js"
+  },
+  "scripts": {
+    "build": "ncc build src/index.js -o dist --license licenses.txt && cp dist/index.js dist/jenkins-reviewer.js && chmod +x dist/jenkins-reviewer.js",
+    "prepare": "npm run build",
+    "test": "jest",
+    "test:watch": "jest --watch", 
+    "test:coverage": "jest --coverage",
+    "update-core": "npm update @ai-reviewer/core"
+  },
+  "dependencies": {
+    "@ai-reviewer/core": "^1.0.0",
+    "commander": "^11.0.0",
+    "dotenv": "^16.0.3"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.36.1",
+    "jest": "^29.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "jenkins",
+    "ai",
+    "code-review",
+    "llm",
+    "openai",
+    "ci-cd"
+  ],
+  "author": "Farhan Nawaz <nawaz@adobe.com>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/ai-reviewer-jenkins.git"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
+  }
+}

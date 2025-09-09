@@ -1,0 +1,110 @@
+name: Update Core Dependency
+
+on:
+  repository_dispatch:
+    types: [core-updated]
+  schedule:
+    - cron: '0 2 * * *'  # Daily check at 2 AM UTC
+  workflow_dispatch:
+    inputs:
+      core_version:
+        description: 'Specific @ai-reviewer/core version to update to'
+        required: false
+        type: string
+
+jobs:
+  update-core:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Get current version
+      id: current-version
+      run: |
+        CURRENT=$(npm list @ai-reviewer/core --depth=0 --json 2>/dev/null | jq -r '.dependencies["@ai-reviewer/core"].version // "not-installed"')
+        echo "current=$CURRENT" >> $GITHUB_OUTPUT
+    
+    - name: Get target version
+      id: target-version
+      run: |
+        if [ "${{ github.event.inputs.core_version }}" != "" ]; then
+          TARGET="${{ github.event.inputs.core_version }}"
+        elif [ "${{ github.event.client_payload.version }}" != "" ]; then
+          TARGET="${{ github.event.client_payload.version }}"
+        else
+          TARGET=$(npm view @ai-reviewer/core version)
+        fi
+        echo "target=$TARGET" >> $GITHUB_OUTPUT
+    
+    - name: Check if update needed
+      id: check-update
+      run: |
+        CURRENT="${{ steps.current-version.outputs.current }}"
+        TARGET="${{ steps.target-version.outputs.target }}"
+        
+        if [ "$CURRENT" != "$TARGET" ]; then
+          echo "needed=true" >> $GITHUB_OUTPUT
+          echo "📦 Update needed: $CURRENT → $TARGET"
+        else
+          echo "needed=false" >> $GITHUB_OUTPUT
+          echo "✅ Already up to date: $CURRENT"
+        fi
+    
+    - name: Install dependencies
+      if: steps.check-update.outputs.needed == 'true'
+      run: npm ci
+    
+    - name: Update core dependency
+      if: steps.check-update.outputs.needed == 'true'
+      run: |
+        npm install @ai-reviewer/core@${{ steps.target-version.outputs.target }}
+        
+    - name: Build executable
+      if: steps.check-update.outputs.needed == 'true'
+      run: |
+        npm run build
+        
+    - name: Verify build
+      if: steps.check-update.outputs.needed == 'true'
+      run: |
+        test -f dist/jenkins-reviewer.js
+        ./dist/jenkins-reviewer.js --version
+    
+    - name: Create pull request
+      if: steps.check-update.outputs.needed == 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        title: 'Update @ai-reviewer/core: ${{ steps.current-version.outputs.current }} → ${{ steps.target-version.outputs.target }}'
+        body: |
+          ## 📦 Core Library Update
+          
+          **@ai-reviewer/core**: `${{ steps.current-version.outputs.current }}` → `${{ steps.target-version.outputs.target }}`
+          
+          ### Verification
+          
+          ✅ **Build**: Jenkins executable builds successfully  
+          ✅ **CLI**: Version command works correctly  
+          ✅ **Dependencies**: No conflicts detected  
+          
+          ### Release Notes
+          
+          See [@ai-reviewer/core v${{ steps.target-version.outputs.target }}](https://github.com/${{ github.repository_owner }}/ai-reviewer-core/releases/tag/v${{ steps.target-version.outputs.target }}) for details.
+          
+          ### Auto-generated
+          
+          This PR was automatically created by the update-core workflow.
+        branch: update-core-${{ steps.target-version.outputs.target }}
+        delete-branch: true
+        labels: |
+          dependencies
+          automated
