@@ -3,7 +3,7 @@
 /**
  * Jenkins AI Code Reviewer
  * 
- * Uses @ai-reviewer/core for the actual review logic
+ * Uses ai-reviewer-core for the actual review logic
  */
 
 require('dotenv').config();
@@ -11,7 +11,15 @@ const { Command } = require('commander');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { CodeReviewer } = require('@ai-reviewer/core');
+const { CodeReviewer } = require('ai-reviewer-core');
+const { 
+    validateGitUrl, 
+    validateBranchName, 
+    validateFilePath, 
+    createSecureTempDir,
+    validateEnvVar,
+    escapeShellArg
+} = require('./security');
 
 class JenkinsAdapter {
     constructor() {
@@ -66,7 +74,7 @@ class JenkinsAdapter {
     }
 
     /**
-     * Validate required parameters
+     * Validate required parameters and sanitize inputs
      */
     validateParameters() {
         const required = ['orgName', 'repoName', 'prNumber', 'llmApiKey', 'llmEndpoint'];
@@ -79,6 +87,58 @@ class JenkinsAdapter {
         const hasDiffSource = this.params.gitUrl || this.params.diffFile || this.params.useStdin;
         if (!hasDiffSource) {
             throw new Error('❌ Must provide either GIT_URL, --diff-file, or --stdin for diff data');
+        }
+
+        // Validate and sanitize git URL if provided
+        if (this.params.gitUrl) {
+            try {
+                this.params.gitUrl = validateGitUrl(this.params.gitUrl);
+            } catch (error) {
+                throw new Error(`❌ Invalid git URL: ${error.message}`);
+            }
+        }
+
+        // Validate and sanitize branch names if provided
+        if (this.params.baseBranch) {
+            try {
+                this.params.baseBranch = validateBranchName(this.params.baseBranch);
+            } catch (error) {
+                throw new Error(`❌ Invalid base branch name: ${error.message}`);
+            }
+        }
+
+        if (this.params.headBranch) {
+            try {
+                this.params.headBranch = validateBranchName(this.params.headBranch);
+            } catch (error) {
+                throw new Error(`❌ Invalid head branch name: ${error.message}`);
+            }
+        }
+
+        // Validate diff file path if provided
+        if (this.params.diffFile) {
+            try {
+                this.params.diffFile = validateFilePath(this.params.diffFile);
+            } catch (error) {
+                throw new Error(`❌ Invalid diff file path: ${error.message}`);
+            }
+        }
+
+        // Validate output file path
+        if (this.params.outputFile) {
+            try {
+                this.params.outputFile = validateFilePath(this.params.outputFile);
+            } catch (error) {
+                throw new Error(`❌ Invalid output file path: ${error.message}`);
+            }
+        }
+
+        // Validate environment variables
+        try {
+            validateEnvVar('LLM_API_KEY', this.params.llmApiKey);
+            validateEnvVar('LLM_ENDPOINT', this.params.llmEndpoint);
+        } catch (error) {
+            throw new Error(`❌ ${error.message}`);
         }
     }
 
@@ -171,36 +231,50 @@ class JenkinsAdapter {
 
     /**
      * Get diff by cloning repository and comparing branches
+     * Uses secure command execution to prevent injection attacks
      */
     getDiffFromGit() {
-        const tmpDir = `/tmp/review-${Date.now()}`;
+        // Create secure temporary directory
+        const tmpDir = createSecureTempDir();
+        const originalCwd = process.cwd();
         
         try {
             console.log(`📦 Cloning repository to ${tmpDir}`);
-            execSync(`git clone ${this.params.gitUrl} ${tmpDir}`, { stdio: 'inherit' });
+            
+            // Use escaped arguments to prevent command injection
+            const gitCloneCmd = `git clone ${escapeShellArg(this.params.gitUrl)} ${escapeShellArg(tmpDir)}`;
+            execSync(gitCloneCmd, { stdio: 'inherit' });
             
             process.chdir(tmpDir);
             
             if (this.params.headBranch && this.params.headBranch !== this.params.baseBranch) {
-                execSync(`git fetch origin ${this.params.headBranch}:${this.params.headBranch}`, { stdio: 'inherit' });
+                const fetchCmd = `git fetch origin ${escapeShellArg(this.params.headBranch)}:${escapeShellArg(this.params.headBranch)}`;
+                execSync(fetchCmd, { stdio: 'inherit' });
             }
             
-            const diffCommand = `git diff ${this.params.baseBranch}...${this.params.headBranch || 'HEAD'}`;
-            console.log(`🔍 Running: ${diffCommand}`);
+            // Build diff command with escaped arguments
+            const baseBranch = escapeShellArg(this.params.baseBranch);
+            const headBranch = this.params.headBranch ? escapeShellArg(this.params.headBranch) : 'HEAD';
+            const diffCommand = `git diff ${baseBranch}...${headBranch}`;
+            
+            console.log(`🔍 Running: git diff ${this.params.baseBranch}...${this.params.headBranch || 'HEAD'}`);
             
             const diffData = execSync(diffCommand, { encoding: 'utf8' });
             
-            process.chdir('/');
-            execSync(`rm -rf ${tmpDir}`);
+            // Cleanup - return to original directory first
+            process.chdir(originalCwd);
+            execSync(`rm -rf ${escapeShellArg(tmpDir)}`);
             
             return diffData;
             
         } catch (error) {
             try {
-                process.chdir('/');
-                execSync(`rm -rf ${tmpDir}`);
+                // Ensure we return to original directory
+                process.chdir(originalCwd);
+                // Clean up temporary directory
+                execSync(`rm -rf ${escapeShellArg(tmpDir)}`);
             } catch (cleanupError) {
-                // Ignore cleanup errors
+                console.warn(`⚠️  Failed to cleanup temporary directory: ${cleanupError.message}`);
             }
             throw new Error(`Git diff failed: ${error.message}`);
         }

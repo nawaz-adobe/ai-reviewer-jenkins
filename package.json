@@ -1,21 +1,20 @@
 {
   "name": "ai-reviewer-jenkins",
   "version": "1.0.0",
-  "description": "AI-powered code review for Jenkins using @ai-reviewer/core",
+  "description": "AI-powered code review for Jenkins using ai-reviewer-core",
   "main": "dist/jenkins-reviewer.js",
   "bin": {
     "ai-reviewer": "dist/jenkins-reviewer.js"
   },
   "scripts": {
-    "build": "ncc build src/index.js -o dist --license licenses.txt && cp dist/index.js dist/jenkins-reviewer.js && chmod +x dist/jenkins-reviewer.js",
-    "prepare": "npm run build",
+    "build": "node scripts/build-team-package.js",
     "test": "jest",
     "test:watch": "jest --watch", 
     "test:coverage": "jest --coverage",
-    "update-core": "npm update @ai-reviewer/core"
+    "update-core": "npm update ai-reviewer-core"
   },
   "dependencies": {
-    "@ai-reviewer/core": "^1.0.0",
+    "ai-reviewer-core": "^1.0.0",
     "commander": "^11.0.0",
     "dotenv": "^16.0.3"
   },
