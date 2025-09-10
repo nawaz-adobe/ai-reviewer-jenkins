@@ -5,9 +5,9 @@ const path = require('path');
 
 // Real integration tests for GitHub API functionality
 describe('GitHub API Integration Tests', () => {
-    // Test environment variables
+    // Test environment variables - defaults to Adobe corporate GitHub
     const testRepo = {
-        org: process.env.TEST_GITHUB_ORG || 'nawaz-adobe',
+        org: process.env.TEST_GITHUB_ORG || 'nawaz',
         repo: process.env.TEST_GITHUB_REPO || 'ai-reviewer-mock',
         pr: process.env.TEST_GITHUB_PR || '1'
     };

@@ -40,12 +40,12 @@ export GITHUB_TOKEN="ghp_your_github_token_here"
 export LLM_API_KEY="sk-your_openai_key_here"  
 export LLM_ENDPOINT="https://api.openai.com/v1/chat/completions"
 
-# Optional: Test against specific repo (defaults to nawaz-adobe/ai-reviewer-mock)
+# Optional: Test against specific repo (defaults to nawaz/ai-reviewer-mock on Adobe corporate GitHub)
 export TEST_GITHUB_ORG="your-org"
 export TEST_GITHUB_REPO="your-test-repo"
 export TEST_GITHUB_PR="1"
 
-# Optional: Test enterprise GitHub
+# Required for Adobe corporate GitHub (default test setup)
 export GITHUB_BASE_URL="https://git.corp.adobe.com/api/v3"
 
 # Optional: Enable actual comment posting (BE CAREFUL!)
@@ -105,9 +105,10 @@ For best results, create a dedicated test repository:
 
 ```bash
 # Example test repo setup
-1. Use existing repo: nawaz-adobe/ai-reviewer-mock (default)
+1. Use existing repo: nawaz/ai-reviewer-mock on git.corp.adobe.com (default)
 2. Create your own test repo with sample code and PRs
 3. Set TEST_GITHUB_ORG=your-org TEST_GITHUB_REPO=your-test-repo TEST_GITHUB_PR=1
+4. Ensure GITHUB_BASE_URL points to your GitHub instance
 ```
 
 ## Debugging Tests
