@@ -23,6 +23,12 @@ Add AI-powered code analysis to any Jenkins pipeline. Get detailed feedback on p
 
 ## 🚀 Quick Start
 
+### Prerequisites
+Before starting, ensure you have:
+- **Node.js 18+** installed (`node --version`)
+- **npm** or **yarn** package manager
+- **Git** for repository operations
+
 ### 1. Build Job Package
 ```bash
 npm install
@@ -77,25 +83,21 @@ pipeline {
 - `ai-review` - Main executable script
 - `ai-security.js` - Security utilities helper
 
-## 🔧 Prerequisites
+## 🔧 Jenkins Setup
 
 ### Jenkins Node Requirements
-Before using the AI review job, ensure each Jenkins node has:
+On each Jenkins node where the AI reviewer will run:
 
-1. **Node.js 18 or higher**
-   ```bash
-   node --version    # Should be v18+
-   ```
-
-2. **Required npm packages** installed globally or in a shared location:
+1. **Install Node.js dependencies:**
    ```bash
    npm install -g ai-reviewer-core commander dotenv
    # OR install in a shared directory like /var/jenkins_home/node_modules/
    ```
 
-3. **Git** (for repository operations)
+2. **Verify installation:**
    ```bash
-   git --version
+   node --version    # Should be v18+
+   git --version     # Git is required for repository operations
    ```
 
 ### Jenkins Configuration
