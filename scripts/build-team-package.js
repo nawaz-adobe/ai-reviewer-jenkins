@@ -36,14 +36,7 @@ indexContent = indexContent.replace(
 fs.writeFileSync(path.join(jobDir, 'ai-review'), indexContent);
 execSync(`chmod +x "${path.join(jobDir, 'ai-review')}"`);
 
-// Copy security module
-console.log('📄 Copying security module...');
-fs.copyFileSync(
-    path.join(srcDir, 'security.js'),
-    path.join(jobDir, 'security.js')
-);
-
 console.log('✅ Package built successfully!');
 console.log(`📁 Location: dist/ai-review-job/`);
-console.log(`📦 Files: ai-review (executable), security.js`);
+console.log(`📦 Files: ai-review (single executable file)`);
 console.log(`🚀 Ready for Jenkins!`);
