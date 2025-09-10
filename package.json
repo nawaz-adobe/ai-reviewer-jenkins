@@ -9,12 +9,13 @@
   "scripts": {
     "build": "node scripts/build-team-package.js",
     "test": "jest",
-    "test:watch": "jest --watch", 
+    "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "update-core": "npm update ai-reviewer-core"
   },
   "dependencies": {
-    "ai-reviewer-core": "^1.0.0",
+    "@octokit/rest": "^22.0.0",
+    "ai-reviewer-core": "^1.1.0",
     "commander": "^11.0.0",
     "dotenv": "^16.0.3"
   },

@@ -7,10 +7,10 @@ Add AI-powered code analysis to any Jenkins pipeline. Get detailed feedback on p
 ## ✨ Features
 
 - 🤖 **AI-Powered Reviews** - OpenAI analyzes your code changes
-- 🔒 **Security Focused** - Input validation and injection prevention  
-- 📊 **Multiple Formats** - JSON, Markdown, or plain text output
-- ⚡ **Fast & Lightweight** - ~19KB package, minimal dependencies
-- 🔧 **Easy Integration** - Works with any Jenkins setup
+- 🔒 **Security Focused** - Input validation and safe API calls  
+- 📊 **JSON Output** - Structured results for easy processing
+- ⚡ **Ultra Fast** - Uses GitHub API directly, no repository cloning
+- 🔧 **Easy Integration** - Just 3 arguments: org, repo, PR number
 - 📝 **Detailed Reports** - Code quality, security, and improvement suggestions
 
 ## 🎯 Use Cases
@@ -45,7 +45,7 @@ dist/ai-review-job/             # ← Simple job execution package
 
 #### Direct Usage:
 ```bash
-./ai-review myorg myrepo 123 https://github.com/myorg/myrepo.git main feature-branch
+./ai-review myorg myrepo 123
 ```
 
 #### Jenkins Pipeline
@@ -55,6 +55,8 @@ pipeline {
     environment {
         LLM_API_KEY = credentials('llm-api-key')
         LLM_ENDPOINT = credentials('llm-endpoint')
+        GITHUB_TOKEN = credentials('github-token')
+        GITHUB_BASE_URL = credentials('github-base-url')  // For enterprise GitHub
     }
     stages {
         stage('AI Code Review') {
@@ -62,8 +64,7 @@ pipeline {
                 sh '''
                     /path/to/ai-review-job/ai-review \
                         "${ORG_NAME}" "${REPO_NAME}" "${PR_NUMBER}" \
-                        "${GIT_URL}" "${BASE_BRANCH}" "${HEAD_BRANCH}" \
-                        "json" "review-results.json"
+                        "review-results.json"
                 '''
             }
         }
@@ -75,13 +76,12 @@ pipeline {
 
 | Package | Location | Size | Purpose |
 |---------|----------|------|---------|
-| **Job Package** | `dist/ai-review-job/` | ~19KB | Main executable + helper |
+| **Job Package** | `dist/ai-review-job/` | ~5KB | Single executable file |
 
-**Ultra-simple:** Main executable + minimal helper, works with any Jenkins setup!
+**Ultra-simple:** One self-contained executable, uses GitHub API directly!
 
 ### Package Contents:
-- `ai-review` - Main executable script
-- `ai-security.js` - Security utilities helper
+- `ai-review` - Single executable script (everything included)
 
 ## 🔧 Jenkins Node Setup
 
@@ -140,21 +140,26 @@ npm list -g ai-reviewer-core    # Should show installed version
 #### Credentials (Jenkins → Manage → Credentials)
 - **`llm-api-key`** (Secret text): Your OpenAI API key
 - **`llm-endpoint`** (Secret text): `https://api.openai.com/v1/chat/completions`
+- **`github-token`** (Secret text): GitHub API token with PR read access
+  - Generate at: Settings → Developer settings → Personal access tokens
+  - Required scopes: `repo` (for private repos) or `public_repo` (for public)
+- **`github-base-url`** (Secret text): 
+  - Adobe: `https://git.corp.adobe.com/api/v3`
+  - Public GitHub: `https://api.github.com` (default)
 
 ### Job Parameters
 - **`ORG_NAME`**: GitHub organization 
 - **`REPO_NAME`**: Repository name
 - **`PR_NUMBER`**: Pull request number
-- **`GIT_URL`**: Repository URL
-- **`BASE_BRANCH`**: Base branch (main/master/develop)
-- **`HEAD_BRANCH`**: Feature branch
 
 ## 🔒 Security Features
 
-✅ Input validation & sanitization  
-✅ Command injection prevention  
-✅ Secure git operations  
-✅ Path traversal protection  
+✅ Input validation for org/repo/PR parameters  
+✅ **Octokit SDK** - Official GitHub API library with built-in security  
+✅ **Token-based authentication** - Secure API access  
+✅ **Enterprise GitHub support** - Works with git.corp.adobe.com  
+✅ **No shell commands** - Pure JavaScript/Node.js  
+✅ **No file system operations** - No repository cloning needed  
 
 ## 🏗️ Development
 

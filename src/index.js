@@ -5,62 +5,46 @@
  */
 
 require('dotenv').config();
-const { execSync } = require('child_process');
 const fs = require('fs');
-const path = require('path');
+const { Octokit } = require('@octokit/rest');
 const { CodeReviewer } = require('ai-reviewer-core');
 
-// Security utilities
-function validateGitUrl(url) {
-    if (!url || typeof url !== 'string') {
-        throw new Error('Git URL is required');
+// Input validation
+function validateInputs(org, repo, pr) {
+    if (!org || !repo || !pr) {
+        throw new Error('Organization, repository, and PR number are required');
     }
-
-    const cleanUrl = url.trim();
     
-    // Only allow HTTPS GitHub URLs
-    if (!cleanUrl.startsWith('https://github.com/') || !cleanUrl.endsWith('.git')) {
-        throw new Error('Only HTTPS GitHub URLs are allowed');
+    // Basic validation for org/repo names (alphanumeric, hyphens, underscores)
+    if (!/^[a-zA-Z0-9_-]+$/.test(org) || !/^[a-zA-Z0-9_-]+$/.test(repo)) {
+        throw new Error('Invalid organization or repository name');
     }
-
-    return cleanUrl;
-}
-
-function validateBranchName(branch) {
-    if (!branch || typeof branch !== 'string') {
-        throw new Error('Branch name is required');
-    }
-
-    const cleanBranch = branch.trim();
     
-    // Basic branch name validation - no special chars
-    if (!/^[a-zA-Z0-9_\/-]+$/.test(cleanBranch)) {
-        throw new Error('Invalid branch name format');
+    // PR number should be numeric
+    if (!/^\d+$/.test(pr)) {
+        throw new Error('PR number must be numeric');
     }
-
-    return cleanBranch;
 }
 
 // Simple argument parsing
 function parseArgs() {
     const args = process.argv.slice(2);
     
-    if (args.length < 6 || args.includes('--help') || args.includes('-h')) {
+    if (args.length < 3 || args.includes('--help') || args.includes('-h')) {
         console.log(`
-Usage: ai-review <org> <repo> <pr> <git-url> <base-branch> <head-branch> [output-file]
+Usage: ai-review <org> <repo> <pr> [output-file]
 
 Arguments:
   org           Organization/owner name
   repo          Repository name  
   pr            Pull request number
-  git-url       Git repository URL
-  base-branch   Base branch
-  head-branch   Head branch
   output-file   Output file (default: review-results.json)
 
 Environment Variables:
-  LLM_API_KEY   OpenAI API key
-  LLM_ENDPOINT  OpenAI API endpoint
+  LLM_API_KEY     OpenAI API key
+  LLM_ENDPOINT    OpenAI API endpoint
+  GITHUB_TOKEN    GitHub API token (required for enterprise)
+  GITHUB_BASE_URL GitHub base URL (default: https://api.github.com)
         `);
         process.exit(args.includes('--help') || args.includes('-h') ? 0 : 1);
     }
@@ -69,80 +53,96 @@ Environment Variables:
         org: args[0],
         repo: args[1], 
         pr: args[2],
-        gitUrl: args[3],
-        baseBranch: args[4],
-        headBranch: args[5],
-        outputFile: args[6] || 'review-results.json'
+        outputFile: args[3] || 'review-results.json'
     };
 }
 
-// Get diff from git
-function getDiff(gitUrl, baseBranch, headBranch) {
-    console.log('📥 Getting code diff...');
-    
-    // Validate inputs
-    const cleanUrl = validateGitUrl(gitUrl);
-    const cleanBase = validateBranchName(baseBranch);
-    const cleanHead = validateBranchName(headBranch);
-    
-    // Create temp directory
-    const tempDir = `/tmp/ai-review-${Date.now()}`;
+// Get diff from GitHub API using Octokit
+async function getPullRequestDiff(org, repo, prNumber) {
+    console.log('📥 Getting PR diff from GitHub API...');
     
     try {
-        // Clone repository
-        execSync(`git clone ${cleanUrl} ${tempDir}`, { stdio: 'pipe' });
+        // Configure Octokit for GitHub Enterprise or public GitHub
+        const githubToken = process.env.GITHUB_TOKEN;
+        const githubBaseUrl = process.env.GITHUB_BASE_URL || 'https://api.github.com';
         
-        // Get diff
-        const diffCmd = `cd ${tempDir} && git diff origin/${cleanBase}..origin/${cleanHead}`;
-        const diff = execSync(diffCmd, { encoding: 'utf8' });
-        
-        // Cleanup
-        execSync(`rm -rf ${tempDir}`);
-        
-        if (!diff.trim()) {
-            throw new Error('No differences found between branches');
+        if (!githubToken) {
+            throw new Error('GITHUB_TOKEN environment variable is required');
         }
         
+        const octokit = new Octokit({
+            auth: githubToken,
+            baseUrl: githubBaseUrl
+        });
+        
+        console.log(`🔗 Using GitHub API: ${githubBaseUrl}`);
+        
+        // Get PR diff using Octokit
+        const response = await octokit.rest.pulls.get({
+            owner: org,
+            repo: repo,
+            pull_number: parseInt(prNumber),
+            mediaType: {
+                format: 'diff'
+            }
+        });
+        
+        const diff = response.data;
+        
+        if (!diff || !diff.trim()) {
+            throw new Error('No differences found in pull request');
+        }
+        
+        console.log('✅ Successfully retrieved PR diff');
         return diff;
         
     } catch (error) {
-        // Cleanup on error
-        execSync(`rm -rf ${tempDir}`, { stdio: 'ignore' });
-        throw new Error(`Failed to get diff: ${error.message}`);
+        if (error.status === 404) {
+            throw new Error(`PR #${prNumber} not found in ${org}/${repo}`);
+        } else if (error.status === 403) {
+            throw new Error('GitHub API access denied. Check your GITHUB_TOKEN permissions.');
+        } else if (error.status === 401) {
+            throw new Error('GitHub API authentication failed. Check your GITHUB_TOKEN.');
+        } else {
+            throw new Error(`Failed to get PR diff: ${error.message}`);
+        }
     }
 }
 
 // Main function
 async function main() {
+    // Parse arguments first (outside try-catch for error handling)
+    const params = parseArgs();
+    
     try {
         console.log('🚀 Starting AI Code Review...');
         
-        // Parse arguments
-        const params = parseArgs();
+        // Validate inputs
+        validateInputs(params.org, params.repo, params.pr);
         
         // Check environment variables
-        const apiKey = process.env.LLM_API_KEY;
-        const endpoint = process.env.LLM_ENDPOINT;
-        
-        if (!apiKey) {
+        if (!process.env.LLM_API_KEY) {
             throw new Error('LLM_API_KEY environment variable is required');
         }
         
-        if (!endpoint) {
+        if (!process.env.LLM_ENDPOINT) {
             throw new Error('LLM_ENDPOINT environment variable is required');
         }
         
-        // Get diff
-        const diff = getDiff(params.gitUrl, params.baseBranch, params.headBranch);
+        if (!process.env.GITHUB_TOKEN) {
+            throw new Error('GITHUB_TOKEN environment variable is required');
+        }
+        
+        // Get diff from GitHub API
+        const diff = await getPullRequestDiff(params.org, params.repo, params.pr);
         
         // Initialize reviewer
         const reviewer = new CodeReviewer();
         
-        // Perform review
+        // Perform review with new API
         console.log('🤖 Analyzing code with AI...');
-        const review = await reviewer.reviewCode(diff, {
-            apiKey,
-            endpoint
+        const review = await reviewer.reviewChanges(diff, {
+            generateSummary: true
         });
         
         // Write results
@@ -150,10 +150,11 @@ async function main() {
             success: true,
             repository: `${params.org}/${params.repo}`,
             pullRequest: params.pr,
-            baseBranch: params.baseBranch,
-            headBranch: params.headBranch,
             timestamp: new Date().toISOString(),
-            review
+            summary: review.summary,
+            comments: review.comments,
+            hunks: review.hunks,
+            metadata: review.metadata
         };
         
         fs.writeFileSync(params.outputFile, JSON.stringify(result, null, 2));
@@ -170,8 +171,7 @@ async function main() {
             timestamp: new Date().toISOString()
         };
         
-        const outputFile = process.argv[8] || 'review-results.json';
-        fs.writeFileSync(outputFile, JSON.stringify(errorResult, null, 2));
+        fs.writeFileSync(params.outputFile, JSON.stringify(errorResult, null, 2));
         
         process.exit(1);
     }
