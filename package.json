@@ -9,8 +9,11 @@
   "scripts": {
     "build": "node scripts/build-team-package.js",
     "test": "jest",
+    "test:unit": "jest __tests__/unit",
+    "test:integration": "jest __tests__/integration",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:verbose": "JEST_VERBOSE=true jest --verbose",
     "update-core": "npm update ai-reviewer-core"
   },
   "dependencies": {
@@ -42,11 +45,23 @@
   },
   "jest": {
     "testEnvironment": "node",
+    "setupFilesAfterEnv": ["<rootDir>/__tests__/setup.js"],
     "collectCoverageFrom": [
       "src/**/*.js"
     ],
     "testMatch": [
       "**/__tests__/**/*.test.js"
-    ]
+    ],
+    "testTimeout": 30000,
+    "verbose": false,
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"],
+    "transformIgnorePatterns": [
+      "node_modules/(?!(@octokit|ai-reviewer-core)/)"
+    ],
+    "moduleNameMapper": {
+      "^@octokit/rest$": "<rootDir>/__tests__/mocks/@octokit/rest.js",
+      "^ai-reviewer-core$": "<rootDir>/__tests__/mocks/ai-reviewer-core.js"
+    }
   }
 }
