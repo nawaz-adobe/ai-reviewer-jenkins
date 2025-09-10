@@ -8,7 +8,7 @@ describe('GitHub API Integration Tests', () => {
     // Test environment variables
     const testRepo = {
         org: process.env.TEST_GITHUB_ORG || 'nawaz-adobe',
-        repo: process.env.TEST_GITHUB_REPO || 'ai-reviewer-test',
+        repo: process.env.TEST_GITHUB_REPO || 'ai-reviewer-mock',
         pr: process.env.TEST_GITHUB_PR || '1'
     };
 
