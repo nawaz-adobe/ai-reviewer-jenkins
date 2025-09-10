@@ -1,0 +1,1102 @@
+{
+  "success": true,
+  "repository": "nawaz/ai-reviewer-mock",
+  "pullRequest": "1",
+  "timestamp": "2025-09-10T14:37:55.808Z",
+  "summary": "### Summary of Incremental Changes\n\n#### **`src/index.js`**\n1. **Improvements:**\n   - **Secret Key Management:**\n     - Replaced hardcoded `SECRET_KEY` with an environment variable (`process.env.JWT_SECRET`) and a fallback for development.\n   - **Registration Endpoint:**\n     - Added input validation to ensure `username` and `password` are provided.\n     - Introduced a check to prevent duplicate user registration.\n     - Increased the bcrypt hashing cost factor from `4` to `12` for improved password security.\n\n2. **New Endpoints:**\n   - **Admin Delete User Endpoint:**\n     - Introduced `/admin/delete-user` endpoint with significant security concerns:\n       - Weak admin authentication using a hardcoded key (`admin123`).\n       - Lack of input validation for `userId`.\n   - **Data Retrieval Endpoint:**\n     - Added `/api/data` endpoint that performs a simulated expensive operation but lacks rate limiting, posing a potential performance and security risk.\n   - **File Upload Endpoint:**\n     - Added `/upload` endpoint with multiple security and performance issues:\n       - No validation for `filename` or `content`.\n       - Potential path traversal vulnerability in file path construction.\n       - Synchronous file write operation (`fs.writeFileSync`), which can block the event loop.\n\n#### **`src/utils.js`**\n1. **Improvements:**\n   - **`parseJSON`:**\n     - Added error handling to catch and throw descriptive errors for invalid JSON.\n\n2. **New Functions with Issues:**\n   - **`processUserData`:**\n     - No input validation for `userData`.\n     - Potential memory leak due to unbounded growth of `cache`.\n     - Synchronous file read operation (`fs.readFileSync`), which can block the event loop.\n     - Use of `eval()` to parse configuration data, introducing a critical security vulnerability.\n     - No error handling for potential issues during data processing.\n   - **`executeCommand`:**\n     - Directly executes user input in a shell command without sanitization, leading to a command injection vulnerability.\n   - **`validatePassword`:**\n     - Implements weak password validation criteria (only checks for a minimum length of 6 characters).\n   - **`renderUserContent`:**\n     - Returns user-provided content in an HTML string without sanitization, introducing a potential XSS vulnerability.\n\n3. **Exports:**\n   - Added the new functions (`processUserData`, `executeCommand`, `validatePassword`, `renderUserContent`) to the module exports.\n\n---\n\n### **Resolved Concerns**\n- The hardcoded `SECRET_KEY` has been replaced with an environment variable, addressing a previously identified security issue.\n- The bcrypt hashing cost factor has been increased, improving password security.\n\n---\n\n### **New Concerns**\n1. **Security Issues:**\n   - **Admin Delete User Endpoint:**\n     - Weak admin authentication and lack of input validation.\n   - **File Upload Endpoint:**\n     - Path traversal vulnerability and lack of file validation.\n   - **`processUserData`:**\n     - Use of `eval()` introduces a critical security risk.\n   - **`executeCommand`:**\n     - Command injection vulnerability due to unsanitized user input.\n   - **`renderUserContent`:**\n     - XSS vulnerability due to lack of content sanitization.\n   - **`validatePassword`:**\n     - Weak password validation criteria.\n\n2. **Performance Issues:**\n   - Synchronous file operations in both `/upload` endpoint and `processUserData` function.\n   - Lack of rate limiting in `/api/data` endpoint, which could lead to performance degradation under heavy load.\n\n3. **Code Quality:**\n   - Several new functions lack proper input validation and error handling, increasing the risk of runtime errors and security vulnerabilities.\n\n---\n\n### **Recommendations**\n1. **Security Enhancements:**\n   - Replace hardcoded admin keys with a secure authentication mechanism (e.g., JWT or OAuth).\n   - Sanitize all user inputs, especially in `executeCommand` and `renderUserContent`.\n   - Avoid using `eval()`; use `JSON.parse()` for parsing configuration data.\n   - Implement stricter password validation criteria (e.g., requiring uppercase, lowercase, numbers, and special characters).\n\n2. **Performance Improvements:**\n   - Replace synchronous file operations with asynchronous alternatives.\n   - Introduce rate limiting for endpoints like `/api/data` to prevent abuse.\n\n3. **Code Quality:**\n   - Add comprehensive input validation and error handling to all new functions and endpoints.\n   - Refactor `processUserData` to avoid potential memory leaks and improve efficiency.\n\nBy addressing these concerns, the codebase can achieve better security, performance, and maintainability.",
+  "comments": [
+    {
+      "body": "Using an environment variable for the secret key is a good improvement, but ensure that the fallback value is only used in non-production environments to avoid potential security risks.",
+      "line": 12,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 8,
+        "newStart": 8
+      }
+    },
+    {
+      "body": "Adding input validation is a great improvement. However, consider sanitizing the input to prevent potential injection attacks.",
+      "line": 19,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 8,
+        "newStart": 8
+      }
+    },
+    {
+      "body": "Checking for existing users is a good addition. Ensure that the `username` comparison is case-insensitive if usernames are intended to be case-insensitive.",
+      "line": 24,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 8,
+        "newStart": 8
+      }
+    },
+    {
+      "body": "Using a higher cost factor for password hashing is a significant security improvement. Ensure that the cost factor is appropriate for your application's performance requirements.",
+      "line": 30,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 8,
+        "newStart": 8
+      }
+    },
+    {
+      "body": "The comment indicates a security vulnerability. Consider implementing proper authentication and authorization mechanisms to secure this endpoint.",
+      "line": 88,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 74,
+        "newStart": 85
+      }
+    },
+    {
+      "body": "Hardcoding the admin key is a security risk. Use environment variables or a secure secrets management system instead.",
+      "line": 94,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 74,
+        "newStart": 85
+      }
+    },
+    {
+      "body": "The lack of additional validation for user input can lead to security vulnerabilities. Validate and sanitize the `userId` parameter.",
+      "line": 98,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 74,
+        "newStart": 85
+      }
+    },
+    {
+      "body": "The absence of rate limiting on this endpoint can lead to performance issues and potential abuse. Consider implementing rate limiting.",
+      "line": 108,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 74,
+        "newStart": 85
+      }
+    },
+    {
+      "body": "The loop generating 10,000 items may cause performance issues. Consider optimizing this operation or implementing pagination.",
+      "line": 112,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 74,
+        "newStart": 85
+      }
+    },
+    {
+      "body": "No validation is performed on the uploaded file. This can lead to security vulnerabilities such as malicious file uploads. Validate the file type and content.",
+      "line": 122,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 74,
+        "newStart": 85
+      }
+    },
+    {
+      "body": "The code is vulnerable to path traversal attacks. Use a library or method to sanitize the file path.",
+      "line": 123,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 74,
+        "newStart": 85
+      }
+    },
+    {
+      "body": "Using `fs.writeFileSync` for file operations can block the event loop and degrade performance. Consider using asynchronous file operations instead.",
+      "line": 127,
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 74,
+        "newStart": 85
+      }
+    },
+    {
+      "body": "Good improvement by adding error handling. However, consider logging the error for debugging purposes before throwing it.",
+      "line": 8,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 1,
+        "newStart": 1
+      }
+    },
+    {
+      "body": "The function 'processUserData' lacks input validation, which can lead to unexpected behavior or security vulnerabilities.",
+      "line": 60,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 51,
+        "newStart": 55
+      }
+    },
+    {
+      "body": "Using 'eval()' to parse configuration data is a major security risk as it can execute arbitrary code. Consider using JSON.parse() instead.",
+      "line": 74,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 51,
+        "newStart": 55
+      }
+    },
+    {
+      "body": "The function 'processUserData' does not handle potential errors when reading the file './config.json'. This can lead to runtime issues.",
+      "line": 76,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 51,
+        "newStart": 55
+      }
+    },
+    {
+      "body": "The synchronous file operation 'fs.readFileSync' can block the event loop, leading to performance issues. Consider using asynchronous methods.",
+      "line": 71,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 51,
+        "newStart": 55
+      }
+    },
+    {
+      "body": "The function 'executeCommand' directly executes user input without sanitization, which introduces a command injection vulnerability.",
+      "line": 86,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 51,
+        "newStart": 55
+      }
+    },
+    {
+      "body": "The password validation criteria in 'validatePassword' are too weak. Consider implementing stronger validation rules, such as requiring special characters, numbers, and a minimum length.",
+      "line": 98,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 51,
+        "newStart": 55
+      }
+    },
+    {
+      "body": "The function 'renderUserContent' does not sanitize user input, which can lead to Cross-Site Scripting (XSS) vulnerabilities.",
+      "line": 107,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 51,
+        "newStart": 55
+      }
+    },
+    {
+      "body": "Consider ensuring that 'processUserData' has proper input validation and error handling to avoid potential security or runtime issues.",
+      "line": 120,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 59,
+        "newStart": 116
+      }
+    },
+    {
+      "body": "Verify that 'executeCommand' is implemented securely to prevent command injection vulnerabilities.",
+      "line": 121,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 59,
+        "newStart": 116
+      }
+    },
+    {
+      "body": "Ensure that 'validatePassword' follows best practices for password validation, such as enforcing strong password policies.",
+      "line": 122,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 59,
+        "newStart": 116
+      }
+    },
+    {
+      "body": "Check that 'renderUserContent' properly sanitizes user input to prevent cross-site scripting (XSS) attacks.",
+      "line": 123,
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 59,
+        "newStart": 116
+      }
+    }
+  ],
+  "hunks": [
+    {
+      "changes": [
+        {
+          "content": " // User database (in-memory for demo)",
+          "type": "context",
+          "lineNumber": 8
+        },
+        {
+          "content": " const users = [];",
+          "type": "context",
+          "lineNumber": 9
+        },
+        {
+          "content": " ",
+          "type": "context",
+          "lineNumber": 10
+        },
+        {
+          "content": "-// Secret key (hardcoded - security issue!)",
+          "type": "deletion",
+          "lineNumber": 11
+        },
+        {
+          "content": "-const SECRET_KEY = 'my-secret-key-123';",
+          "type": "deletion",
+          "lineNumber": 12
+        },
+        {
+          "content": "+// Secret key (improved - using environment variable)",
+          "type": "addition",
+          "lineNumber": 11
+        },
+        {
+          "content": "+const SECRET_KEY = process.env.JWT_SECRET || 'fallback-secret-for-dev';",
+          "type": "addition",
+          "lineNumber": 12
+        },
+        {
+          "content": " ",
+          "type": "context",
+          "lineNumber": 13
+        },
+        {
+          "content": " // Registration endpoint",
+          "type": "context",
+          "lineNumber": 14
+        },
+        {
+          "content": " app.post('/register', async (req, res) => {",
+          "type": "context",
+          "lineNumber": 15
+        },
+        {
+          "content": "     const { username, password } = req.body;",
+          "type": "context",
+          "lineNumber": 16
+        },
+        {
+          "content": "     ",
+          "type": "context",
+          "lineNumber": 17
+        },
+        {
+          "content": "-    // Hash password with low cost factor (security issue!)",
+          "type": "deletion",
+          "lineNumber": 18
+        },
+        {
+          "content": "-    const hashedPassword = await bcrypt.hash(password, 4);",
+          "type": "deletion",
+          "lineNumber": 19
+        },
+        {
+          "content": "+    // Add input validation (improvement)",
+          "type": "addition",
+          "lineNumber": 18
+        },
+        {
+          "content": "+    if (!username || !password) {",
+          "type": "addition",
+          "lineNumber": 19
+        },
+        {
+          "content": "+        return res.status(400).json({ error: 'Username and password are required' });",
+          "type": "addition",
+          "lineNumber": 20
+        },
+        {
+          "content": "+    }",
+          "type": "addition",
+          "lineNumber": 21
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 22
+        },
+        {
+          "content": "+    // Check if user already exists",
+          "type": "addition",
+          "lineNumber": 23
+        },
+        {
+          "content": "+    const existingUser = users.find(u => u.username === username);",
+          "type": "addition",
+          "lineNumber": 24
+        },
+        {
+          "content": "+    if (existingUser) {",
+          "type": "addition",
+          "lineNumber": 25
+        },
+        {
+          "content": "+        return res.status(409).json({ error: 'User already exists' });",
+          "type": "addition",
+          "lineNumber": 26
+        },
+        {
+          "content": "+    }",
+          "type": "addition",
+          "lineNumber": 27
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 28
+        },
+        {
+          "content": "+    // Hash password with appropriate cost factor (improved security)",
+          "type": "addition",
+          "lineNumber": 29
+        },
+        {
+          "content": "+    const hashedPassword = await bcrypt.hash(password, 12);",
+          "type": "addition",
+          "lineNumber": 30
+        },
+        {
+          "content": "     ",
+          "type": "context",
+          "lineNumber": 31
+        },
+        {
+          "content": "     users.push({ ",
+          "type": "context",
+          "lineNumber": 32
+        },
+        {
+          "content": "         id: users.length + 1,",
+          "type": "context",
+          "lineNumber": 33
+        }
+      ],
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 8,
+        "newStart": 8
+      }
+    },
+    {
+      "changes": [
+        {
+          "content": "     }",
+          "type": "context",
+          "lineNumber": 85
+        },
+        {
+          "content": " });",
+          "type": "context",
+          "lineNumber": 86
+        },
+        {
+          "content": " ",
+          "type": "context",
+          "lineNumber": 87
+        },
+        {
+          "content": "+// Admin endpoint with security vulnerability",
+          "type": "addition",
+          "lineNumber": 88
+        },
+        {
+          "content": "+app.post('/admin/delete-user', (req, res) => {",
+          "type": "addition",
+          "lineNumber": 89
+        },
+        {
+          "content": "+    const { userId } = req.body;",
+          "type": "addition",
+          "lineNumber": 90
+        },
+        {
+          "content": "+    const adminKey = req.headers['admin-key'];",
+          "type": "addition",
+          "lineNumber": 91
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 92
+        },
+        {
+          "content": "+    // Weak admin authentication (security issue!)",
+          "type": "addition",
+          "lineNumber": 93
+        },
+        {
+          "content": "+    if (adminKey !== 'admin123') {",
+          "type": "addition",
+          "lineNumber": 94
+        },
+        {
+          "content": "+        return res.status(403).json({ error: 'Unauthorized' });",
+          "type": "addition",
+          "lineNumber": 95
+        },
+        {
+          "content": "+    }",
+          "type": "addition",
+          "lineNumber": 96
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 97
+        },
+        {
+          "content": "+    // No additional validation (security issue!)",
+          "type": "addition",
+          "lineNumber": 98
+        },
+        {
+          "content": "+    const userIndex = users.findIndex(u => u.id == userId);",
+          "type": "addition",
+          "lineNumber": 99
+        },
+        {
+          "content": "+    if (userIndex === -1) {",
+          "type": "addition",
+          "lineNumber": 100
+        },
+        {
+          "content": "+        return res.status(404).json({ error: 'User not found' });",
+          "type": "addition",
+          "lineNumber": 101
+        },
+        {
+          "content": "+    }",
+          "type": "addition",
+          "lineNumber": 102
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 103
+        },
+        {
+          "content": "+    users.splice(userIndex, 1);",
+          "type": "addition",
+          "lineNumber": 104
+        },
+        {
+          "content": "+    res.json({ message: 'User deleted successfully' });",
+          "type": "addition",
+          "lineNumber": 105
+        },
+        {
+          "content": "+});",
+          "type": "addition",
+          "lineNumber": 106
+        },
+        {
+          "content": "+",
+          "type": "addition",
+          "lineNumber": 107
+        },
+        {
+          "content": "+// Rate limiting missing (performance/security issue!)",
+          "type": "addition",
+          "lineNumber": 108
+        },
+        {
+          "content": "+app.get('/api/data', (req, res) => {",
+          "type": "addition",
+          "lineNumber": 109
+        },
+        {
+          "content": "+    // Simulated expensive operation",
+          "type": "addition",
+          "lineNumber": 110
+        },
+        {
+          "content": "+    const data = [];",
+          "type": "addition",
+          "lineNumber": 111
+        },
+        {
+          "content": "+    for (let i = 0; i < 10000; i++) {",
+          "type": "addition",
+          "lineNumber": 112
+        },
+        {
+          "content": "+        data.push({ id: i, value: Math.random() });",
+          "type": "addition",
+          "lineNumber": 113
+        },
+        {
+          "content": "+    }",
+          "type": "addition",
+          "lineNumber": 114
+        },
+        {
+          "content": "+    res.json(data);",
+          "type": "addition",
+          "lineNumber": 115
+        },
+        {
+          "content": "+});",
+          "type": "addition",
+          "lineNumber": 116
+        },
+        {
+          "content": "+",
+          "type": "addition",
+          "lineNumber": 117
+        },
+        {
+          "content": "+// File upload endpoint with security issues",
+          "type": "addition",
+          "lineNumber": 118
+        },
+        {
+          "content": "+app.post('/upload', (req, res) => {",
+          "type": "addition",
+          "lineNumber": 119
+        },
+        {
+          "content": "+    const { filename, content } = req.body;",
+          "type": "addition",
+          "lineNumber": 120
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 121
+        },
+        {
+          "content": "+    // No file validation (security issue!)",
+          "type": "addition",
+          "lineNumber": 122
+        },
+        {
+          "content": "+    // Potential path traversal vulnerability",
+          "type": "addition",
+          "lineNumber": 123
+        },
+        {
+          "content": "+    const filePath = './uploads/' + filename;",
+          "type": "addition",
+          "lineNumber": 124
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 125
+        },
+        {
+          "content": "+    const fs = require('fs');",
+          "type": "addition",
+          "lineNumber": 126
+        },
+        {
+          "content": "+    // Synchronous write operation (performance issue!)",
+          "type": "addition",
+          "lineNumber": 127
+        },
+        {
+          "content": "+    fs.writeFileSync(filePath, content);",
+          "type": "addition",
+          "lineNumber": 128
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 129
+        },
+        {
+          "content": "+    res.json({ message: 'File uploaded successfully', path: filePath });",
+          "type": "addition",
+          "lineNumber": 130
+        },
+        {
+          "content": "+});",
+          "type": "addition",
+          "lineNumber": 131
+        },
+        {
+          "content": "+",
+          "type": "addition",
+          "lineNumber": 132
+        },
+        {
+          "content": " const PORT = process.env.PORT || 3000;",
+          "type": "context",
+          "lineNumber": 133
+        },
+        {
+          "content": " app.listen(PORT, () => {",
+          "type": "context",
+          "lineNumber": 134
+        },
+        {
+          "content": "     console.log(`Server running on port ${PORT}`);",
+          "type": "context",
+          "lineNumber": 135
+        }
+      ],
+      "filename": "src/index.js",
+      "hunkHeader": {
+        "oldStart": 74,
+        "newStart": 85
+      }
+    },
+    {
+      "changes": [
+        {
+          "content": " // Utility functions with various code quality issues",
+          "type": "context",
+          "lineNumber": 1
+        },
+        {
+          "content": " ",
+          "type": "context",
+          "lineNumber": 2
+        },
+        {
+          "content": "-// Function with no error handling",
+          "type": "deletion",
+          "lineNumber": 3
+        },
+        {
+          "content": "+// Function with improved error handling",
+          "type": "addition",
+          "lineNumber": 3
+        },
+        {
+          "content": " function parseJSON(jsonString) {",
+          "type": "context",
+          "lineNumber": 4
+        },
+        {
+          "content": "-    return JSON.parse(jsonString);",
+          "type": "deletion",
+          "lineNumber": 5
+        },
+        {
+          "content": "+    try {",
+          "type": "addition",
+          "lineNumber": 5
+        },
+        {
+          "content": "+        return JSON.parse(jsonString);",
+          "type": "addition",
+          "lineNumber": 6
+        },
+        {
+          "content": "+    } catch (error) {",
+          "type": "addition",
+          "lineNumber": 7
+        },
+        {
+          "content": "+        throw new Error(`Invalid JSON: ${error.message}`);",
+          "type": "addition",
+          "lineNumber": 8
+        },
+        {
+          "content": "+    }",
+          "type": "addition",
+          "lineNumber": 9
+        },
+        {
+          "content": " }",
+          "type": "context",
+          "lineNumber": 10
+        },
+        {
+          "content": " ",
+          "type": "context",
+          "lineNumber": 11
+        },
+        {
+          "content": " // Function with magic numbers",
+          "type": "context",
+          "lineNumber": 12
+        }
+      ],
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 1,
+        "newStart": 1
+      }
+    },
+    {
+      "changes": [
+        {
+          "content": "     return fs.readFileSync('/etc/myapp/config.json', 'utf8');",
+          "type": "context",
+          "lineNumber": 55
+        },
+        {
+          "content": " }",
+          "type": "context",
+          "lineNumber": 56
+        },
+        {
+          "content": " ",
+          "type": "context",
+          "lineNumber": 57
+        },
+        {
+          "content": "+// New function with various issues for AI to catch",
+          "type": "addition",
+          "lineNumber": 58
+        },
+        {
+          "content": "+function processUserData(userData) {",
+          "type": "addition",
+          "lineNumber": 59
+        },
+        {
+          "content": "+    // No input validation (issue!)",
+          "type": "addition",
+          "lineNumber": 60
+        },
+        {
+          "content": "+    let result = {};",
+          "type": "addition",
+          "lineNumber": 61
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 62
+        },
+        {
+          "content": "+    // Potential memory leak with large datasets",
+          "type": "addition",
+          "lineNumber": 63
+        },
+        {
+          "content": "+    let cache = [];",
+          "type": "addition",
+          "lineNumber": 64
+        },
+        {
+          "content": "+    for (let i = 0; i < userData.length; i++) {",
+          "type": "addition",
+          "lineNumber": 65
+        },
+        {
+          "content": "+        cache.push(userData[i]);",
+          "type": "addition",
+          "lineNumber": 66
+        },
+        {
+          "content": "+    }",
+          "type": "addition",
+          "lineNumber": 67
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 68
+        },
+        {
+          "content": "+    // Synchronous file operation (blocking issue!)",
+          "type": "addition",
+          "lineNumber": 69
+        },
+        {
+          "content": "+    const fs = require('fs');",
+          "type": "addition",
+          "lineNumber": 70
+        },
+        {
+          "content": "+    const configData = fs.readFileSync('./config.json', 'utf8');",
+          "type": "addition",
+          "lineNumber": 71
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 72
+        },
+        {
+          "content": "+    // Using eval() (major security issue!)",
+          "type": "addition",
+          "lineNumber": 73
+        },
+        {
+          "content": "+    const config = eval('(' + configData + ')');",
+          "type": "addition",
+          "lineNumber": 74
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 75
+        },
+        {
+          "content": "+    // Not handling potential errors",
+          "type": "addition",
+          "lineNumber": 76
+        },
+        {
+          "content": "+    result.processed = cache.map(item => item.name.toUpperCase());",
+          "type": "addition",
+          "lineNumber": 77
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 78
+        },
+        {
+          "content": "+    return result;",
+          "type": "addition",
+          "lineNumber": 79
+        },
+        {
+          "content": "+}",
+          "type": "addition",
+          "lineNumber": 80
+        },
+        {
+          "content": "+",
+          "type": "addition",
+          "lineNumber": 81
+        },
+        {
+          "content": "+// Function with command injection vulnerability",
+          "type": "addition",
+          "lineNumber": 82
+        },
+        {
+          "content": "+function executeCommand(userInput) {",
+          "type": "addition",
+          "lineNumber": 83
+        },
+        {
+          "content": "+    const { exec } = require('child_process');",
+          "type": "addition",
+          "lineNumber": 84
+        },
+        {
+          "content": "+    ",
+          "type": "addition",
+          "lineNumber": 85
+        },
+        {
+          "content": "+    // Direct execution without sanitization (security issue!)",
+          "type": "addition",
+          "lineNumber": 86
+        },
+        {
+          "content": "+    exec(`ls -la ${userInput}`, (error, stdout, stderr) => {",
+          "type": "addition",
+          "lineNumber": 87
+        },
+        {
+          "content": "+        if (error) {",
+          "type": "addition",
+          "lineNumber": 88
+        },
+        {
+          "content": "+            console.error(`Error: ${error}`);",
+          "type": "addition",
+          "lineNumber": 89
+        },
+        {
+          "content": "+            return;",
+          "type": "addition",
+          "lineNumber": 90
+        },
+        {
+          "content": "+        }",
+          "type": "addition",
+          "lineNumber": 91
+        },
+        {
+          "content": "+        console.log(stdout);",
+          "type": "addition",
+          "lineNumber": 92
+        },
+        {
+          "content": "+    });",
+          "type": "addition",
+          "lineNumber": 93
+        },
+        {
+          "content": "+}",
+          "type": "addition",
+          "lineNumber": 94
+        },
+        {
+          "content": "+",
+          "type": "addition",
+          "lineNumber": 95
+        },
+        {
+          "content": "+// Function with weak password validation",
+          "type": "addition",
+          "lineNumber": 96
+        },
+        {
+          "content": "+function validatePassword(password) {",
+          "type": "addition",
+          "lineNumber": 97
+        },
+        {
+          "content": "+    // Weak validation criteria (security issue!)",
+          "type": "addition",
+          "lineNumber": 98
+        },
+        {
+          "content": "+    if (password.length >= 6) {",
+          "type": "addition",
+          "lineNumber": 99
+        },
+        {
+          "content": "+        return true;",
+          "type": "addition",
+          "lineNumber": 100
+        },
+        {
+          "content": "+    }",
+          "type": "addition",
+          "lineNumber": 101
+        },
+        {
+          "content": "+    return false;",
+          "type": "addition",
+          "lineNumber": 102
+        },
+        {
+          "content": "+}",
+          "type": "addition",
+          "lineNumber": 103
+        },
+        {
+          "content": "+",
+          "type": "addition",
+          "lineNumber": 104
+        },
+        {
+          "content": "+// Function with potential XSS vulnerability",
+          "type": "addition",
+          "lineNumber": 105
+        },
+        {
+          "content": "+function renderUserContent(content) {",
+          "type": "addition",
+          "lineNumber": 106
+        },
+        {
+          "content": "+    // No sanitization (security issue!)",
+          "type": "addition",
+          "lineNumber": 107
+        },
+        {
+          "content": "+    return `<div>${content}</div>`;",
+          "type": "addition",
+          "lineNumber": 108
+        },
+        {
+          "content": "+}",
+          "type": "addition",
+          "lineNumber": 109
+        },
+        {
+          "content": "+",
+          "type": "addition",
+          "lineNumber": 110
+        },
+        {
+          "content": " module.exports = {",
+          "type": "context",
+          "lineNumber": 111
+        },
+        {
+          "content": "     parseJSON,",
+          "type": "context",
+          "lineNumber": 112
+        },
+        {
+          "content": "     calculateTax,",
+          "type": "context",
+          "lineNumber": 113
+        }
+      ],
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 51,
+        "newStart": 55
+      }
+    },
+    {
+      "changes": [
+        {
+          "content": "     buildMessage,",
+          "type": "context",
+          "lineNumber": 116
+        },
+        {
+          "content": "     divide,",
+          "type": "context",
+          "lineNumber": 117
+        },
+        {
+          "content": "     buildQuery,",
+          "type": "context",
+          "lineNumber": 118
+        },
+        {
+          "content": "-    readConfig",
+          "type": "deletion",
+          "lineNumber": 62
+        },
+        {
+          "content": "+    readConfig,",
+          "type": "addition",
+          "lineNumber": 119
+        },
+        {
+          "content": "+    processUserData,",
+          "type": "addition",
+          "lineNumber": 120
+        },
+        {
+          "content": "+    executeCommand,",
+          "type": "addition",
+          "lineNumber": 121
+        },
+        {
+          "content": "+    validatePassword,",
+          "type": "addition",
+          "lineNumber": 122
+        },
+        {
+          "content": "+    renderUserContent",
+          "type": "addition",
+          "lineNumber": 123
+        },
+        {
+          "content": " };",
+          "type": "context",
+          "lineNumber": 124
+        },
+        {
+          "content": "",
+          "type": "context",
+          "lineNumber": 125
+        }
+      ],
+      "filename": "src/utils.js",
+      "hunkHeader": {
+        "oldStart": 59,
+        "newStart": 116
+      }
+    }
+  ],
+  "metadata": {
+    "reviewedAt": "2025-09-10T14:37:18.321Z",
+    "totalHunks": 5,
+    "totalComments": 24
+  }
+}

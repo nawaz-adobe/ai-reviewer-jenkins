@@ -17,6 +17,7 @@
     "update-core": "npm update ai-reviewer-core"
   },
   "dependencies": {
+    "@octokit/auth-app": "^8.1.0",
     "@octokit/rest": "^22.0.0",
     "ai-reviewer-core": "^1.1.0",
     "commander": "^11.0.0",
@@ -45,7 +46,9 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "setupFilesAfterEnv": ["<rootDir>/__tests__/setup.js"],
+    "setupFilesAfterEnv": [
+      "<rootDir>/__tests__/setup.js"
+    ],
     "collectCoverageFrom": [
       "src/**/*.js"
     ],
@@ -55,7 +58,11 @@
     "testTimeout": 30000,
     "verbose": false,
     "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov", "html"],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!(@octokit|ai-reviewer-core)/)"
     ],

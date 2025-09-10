@@ -3,33 +3,26 @@
 # AI Reviewer Test Script
 # Tests the AI reviewer against the comprehensive test case PR
 
-echo "🧪 AI Reviewer Test Script"
-echo "=========================="
+echo "🧪 CodeWhisperer Test Script"
+echo "============================"
 
-# Check if credentials are set
-if [ -z "$GITHUB_TOKEN" ] && [ -z "$GITHUB_APP_ID" ]; then
-    echo "❌ Error: GitHub authentication not configured"
+# Check if CodeWhisperer GitHub App credentials are set
+if [ -z "$GITHUB_APP_ID" ]; then
+    echo "❌ Error: CodeWhisperer GitHub App authentication not configured"
     echo ""
-    echo "Option 1 - Personal Access Token:"
-    echo "  export GITHUB_TOKEN='ghp_your_adobe_github_token'"
-    echo "  (Generate at: https://git.corp.adobe.com/settings/tokens)"
-    echo "  Required scopes: repo, write:discussion"
-    echo ""
-    echo "Option 2 - GitHub App (production):"
+    echo "CodeWhisperer GitHub App (required):"
     echo "  export GITHUB_APP_ID='123456'"
     echo "  export GITHUB_APP_PRIVATE_KEY='-----BEGIN RSA PRIVATE KEY-----...'"
     echo "  export GITHUB_INSTALLATION_ID='12345678'"
+    echo ""
+    echo "Setup guide: https://docs.github.com/en/developers/apps/building-github-apps/creating-a-github-app"
     exit 1
 fi
 
-if [ -n "$GITHUB_APP_ID" ]; then
-    echo "🤖 Using GitHub App authentication"
-    if [ -z "$GITHUB_APP_PRIVATE_KEY" ] || [ -z "$GITHUB_INSTALLATION_ID" ]; then
-        echo "❌ Error: GitHub App requires GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_INSTALLATION_ID"
-        exit 1
-    fi
-else
-    echo "👤 Using Personal Access Token authentication"
+echo "🤖 Using GitHub App authentication"
+if [ -z "$GITHUB_APP_PRIVATE_KEY" ] || [ -z "$GITHUB_INSTALLATION_ID" ]; then
+    echo "❌ Error: GitHub App requires GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_INSTALLATION_ID"
+    exit 1
 fi
 
 if [ -z "$LLM_API_KEY" ]; then

@@ -7,7 +7,74 @@
 require('dotenv').config();
 const fs = require('fs');
 const { Octokit } = require('@octokit/rest');
+const { createAppAuth } = require('@octokit/auth-app');
 const { CodeReviewer } = require('ai-reviewer-core');
+const { Command } = require('commander');
+
+// Simple logging utility
+const logger = {
+    info: (message, data = {}) => console.log(`ℹ️  ${message}`, Object.keys(data).length ? data : ''),
+    warn: (message, data = {}) => console.warn(`⚠️  ${message}`, Object.keys(data).length ? data : ''),
+    error: (message, data = {}) => console.error(`❌ ${message}`, Object.keys(data).length ? data : ''),
+    success: (message, data = {}) => console.log(`✅ ${message}`, Object.keys(data).length ? data : '')
+};
+
+// Centralized environment validation
+function validateEnvironment() {
+    const required = {
+        'LLM_API_KEY': 'OpenAI API key',
+        'LLM_ENDPOINT': 'OpenAI API endpoint', 
+        'GITHUB_APP_ID': 'GitHub App ID',
+        'GITHUB_APP_PRIVATE_KEY': 'GitHub App private key',
+        'GITHUB_INSTALLATION_ID': 'GitHub App installation ID'
+    };
+    
+    for (const [envVar, description] of Object.entries(required)) {
+        if (!process.env[envVar]) {
+            throw new Error(`${envVar} environment variable is required (${description})`);
+        }
+    }
+    
+    logger.info('Environment validation passed');
+}
+
+// Retry utility with exponential backoff
+async function withRetry(fn, maxAttempts = 3, baseDelay = 1000) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            const isLastAttempt = attempt === maxAttempts;
+            const isRetryable = error.status >= 500 || error.status === 429 || error.code === 'ECONNRESET';
+            
+            if (isLastAttempt || !isRetryable) {
+                throw error;
+            }
+            
+            const delay = baseDelay * Math.pow(2, attempt - 1);
+            logger.warn(`Attempt ${attempt} failed, retrying in ${delay}ms`, { error: error.message });
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+}
+
+// Rate limiting helper
+const rateLimiter = {
+    checkAndWait: async (response) => {
+        const remaining = parseInt(response.headers['x-ratelimit-remaining'] || '5000');
+        const resetTime = parseInt(response.headers['x-ratelimit-reset'] || '0');
+        
+        if (remaining < 10) {
+            const waitTime = Math.max(0, (resetTime * 1000) - Date.now() + 1000);
+            if (waitTime > 0) {
+                logger.warn(`Rate limit low (${remaining} remaining), waiting ${Math.round(waitTime/1000)}s`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+        }
+        
+        return remaining;
+    }
+};
 
 // Input validation
 function validateInputs(org, repo, pr) {
@@ -26,59 +93,87 @@ function validateInputs(org, repo, pr) {
     }
 }
 
-// Simple argument parsing
-function parseArgs() {
-    const args = process.argv.slice(2);
+// Create authenticated Octokit instance using GitHub App
+function createOctokit() {
+    const githubBaseUrl = process.env.GITHUB_BASE_URL || 'https://api.github.com';
     
-    if (args.length < 3 || args.includes('--help') || args.includes('-h')) {
-        console.log(`
-Usage: ai-review <org> <repo> <pr> [output-file]
+    logger.info('Using GitHub App authentication', { baseUrl: githubBaseUrl });
+    
+    return new Octokit({
+        baseUrl: githubBaseUrl,
+        authStrategy: createAppAuth,
+        auth: {
+            appId: process.env.GITHUB_APP_ID,
+            privateKey: process.env.GITHUB_APP_PRIVATE_KEY,
+            installationId: process.env.GITHUB_INSTALLATION_ID,
+        },
+    });
+}
 
-Arguments:
-  org           Organization/owner name
-  repo          Repository name  
-  pr            Pull request number
-  output-file   Output file (default: review-results.json)
-
+// Enhanced CLI argument parsing using commander
+function parseArgs() {
+    const program = new Command();
+    
+    program
+        .name('ai-review')
+        .description('AI-powered code review for GitHub PRs using CodeWhisperer')
+        .version('1.0.0')
+        .argument('<org>', 'GitHub organization/owner name')
+        .argument('<repo>', 'Repository name')
+        .argument('<pr>', 'Pull request number')
+        .option('-o, --output <file>', 'Output file for review results', 'review-results.json')
+        .option('--no-comments', 'Skip posting comments to PR (generate review only)')
+        .option('--dry-run', 'Perform review without posting to GitHub')
+        .option('--max-retries <number>', 'Maximum retry attempts for API calls', '3')
+        .addHelpText('after', `
 Environment Variables:
-  LLM_API_KEY     OpenAI API key
-  LLM_ENDPOINT    OpenAI API endpoint
-  GITHUB_TOKEN    GitHub API token (required for enterprise)
-  GITHUB_BASE_URL GitHub base URL (default: https://api.github.com)
-  POST_COMMENTS   Post comments to PR (true/false, default: true)
-        `);
-        process.exit(args.includes('--help') || args.includes('-h') ? 0 : 1);
-    }
+  LLM_API_KEY               OpenAI API key
+  LLM_ENDPOINT              OpenAI API endpoint
+  POST_COMMENTS             Post comments to PR (true/false, default: true)
+  GITHUB_BASE_URL           GitHub base URL (default: https://api.github.com)
+  
+  GitHub App Authentication (required):
+  GITHUB_APP_ID             GitHub App ID
+  GITHUB_APP_PRIVATE_KEY    GitHub App private key (PEM format)
+  GITHUB_INSTALLATION_ID    GitHub App installation ID
 
-    return {
-        org: args[0],
-        repo: args[1], 
-        pr: args[2],
-        outputFile: args[3] || 'review-results.json'
-    };
+Examples:
+  ai-review myorg myrepo 123
+  ai-review myorg myrepo 123 --output custom-results.json
+  ai-review myorg myrepo 123 --no-comments --dry-run
+        `);
+
+    try {
+        program.parse(process.argv);
+        const options = program.opts();
+        const args = program.args;
+
+        // Set environment variables based on CLI options
+        if (options.noComments || options.dryRun) {
+            process.env.POST_COMMENTS = 'false';
+        }
+
+        return {
+            org: args[0],
+            repo: args[1],
+            pr: args[2],
+            outputFile: options.output,
+            dryRun: options.dryRun,
+            maxRetries: parseInt(options.maxRetries)
+        };
+    } catch (error) {
+        logger.error('Invalid command line arguments', { error: error.message });
+        process.exit(1);
+    }
 }
 
 // Get diff from GitHub API using Octokit
 async function getPullRequestDiff(org, repo, prNumber) {
-    console.log('📥 Getting PR diff from GitHub API...');
+    logger.info('Getting PR diff from GitHub API', { org, repo, prNumber });
     
-    try {
-        // Configure Octokit for GitHub Enterprise or public GitHub
-        const githubToken = process.env.GITHUB_TOKEN;
-        const githubBaseUrl = process.env.GITHUB_BASE_URL || 'https://api.github.com';
+    return withRetry(async () => {
+        const octokit = createOctokit();
         
-        if (!githubToken) {
-            throw new Error('GITHUB_TOKEN environment variable is required');
-        }
-        
-        const octokit = new Octokit({
-            auth: githubToken,
-            baseUrl: githubBaseUrl
-        });
-        
-        console.log(`🔗 Using GitHub API: ${githubBaseUrl}`);
-        
-        // Get PR diff using Octokit
         const response = await octokit.rest.pulls.get({
             owner: org,
             repo: repo,
@@ -88,101 +183,123 @@ async function getPullRequestDiff(org, repo, prNumber) {
             }
         });
         
+        // Check rate limits
+        await rateLimiter.checkAndWait(response);
+        
         const diff = response.data;
         
         if (!diff || !diff.trim()) {
             throw new Error('No differences found in pull request');
         }
         
-        console.log('✅ Successfully retrieved PR diff');
+        logger.success('Successfully retrieved PR diff', { 
+            size: diff.length,
+            org, 
+            repo, 
+            prNumber 
+        });
+        
         return diff;
         
-    } catch (error) {
+    }).catch(error => {
         if (error.status === 404) {
             throw new Error(`PR #${prNumber} not found in ${org}/${repo}`);
         } else if (error.status === 403) {
-            throw new Error('GitHub API access denied. Check your GITHUB_TOKEN permissions.');
+            throw new Error('GitHub API access denied. Check your authentication permissions.');
         } else if (error.status === 401) {
-            throw new Error('GitHub API authentication failed. Check your GITHUB_TOKEN.');
+            throw new Error('GitHub API authentication failed. Check your credentials.');
         } else {
             throw new Error(`Failed to get PR diff: ${error.message}`);
         }
-    }
+    });
 }
 
 // Post review comments back to GitHub PR
 async function postReviewToGitHub(org, repo, prNumber, review) {
     const shouldPost = process.env.POST_COMMENTS !== 'false';
     if (!shouldPost) {
-        console.log('⏭️  Skipping GitHub comment posting (POST_COMMENTS=false)');
+        logger.info('Skipping GitHub comment posting (POST_COMMENTS=false)');
         return;
     }
 
-    console.log('📝 Posting review comments to GitHub PR...');
+    logger.info('Posting review comments to GitHub PR', { 
+        org, 
+        repo, 
+        prNumber,
+        summaryLength: review.summary?.length || 0,
+        commentCount: review.comments?.length || 0
+    });
     
     try {
-        const githubToken = process.env.GITHUB_TOKEN;
-        const githubBaseUrl = process.env.GITHUB_BASE_URL || 'https://api.github.com';
-        
-        const octokit = new Octokit({
-            auth: githubToken,
-            baseUrl: githubBaseUrl
-        });
+        const octokit = createOctokit();
 
         // Post summary as a general PR comment
         if (review.summary && review.summary.trim()) {
-            const summaryComment = `## 🤖 AI Code Review Summary
+            const summaryComment = `## Review Summary
 
 ${review.summary}
 
 ---
-*Generated by AI Code Reviewer*`;
+*Generated by CodeWhisperer*`;
 
-            await octokit.rest.issues.createComment({
+            await withRetry(() => octokit.rest.issues.createComment({
                 owner: org,
                 repo: repo,
                 issue_number: parseInt(prNumber),
                 body: summaryComment
-            });
+            }));
             
-            console.log('✅ Posted summary comment to PR');
+            logger.success('Posted summary comment to PR');
         }
 
         // Post line-specific comments if available
         if (review.comments && review.comments.length > 0) {
             let postedCount = 0;
             
+            // Get PR details to get the head commit SHA (required for Enterprise GitHub)
+            const prDetails = await withRetry(() => octokit.rest.pulls.get({
+                owner: org,
+                repo: repo,
+                pull_number: parseInt(prNumber)
+            }));
+            const commitId = prDetails.data.head.sha;
+            
             for (const comment of review.comments) {
+                // Extract properties outside try block for error handling
+                const filePath = comment.file || comment.filename;
+                const commentBody = comment.message || comment.body;
+                
                 try {
                     // Only post if we have file path and line number
-                    if (comment.file && comment.line) {
-                        await octokit.rest.pulls.createReviewComment({
+                    if (filePath && comment.line && commentBody) {
+                        await withRetry(() => octokit.rest.pulls.createReviewComment({
                             owner: org,
                             repo: repo,
                             pull_number: parseInt(prNumber),
-                            body: `🤖 **AI Review:** ${comment.message}`,
-                            path: comment.file,
+                            body: commentBody,
+                            path: filePath,
+                            commit_id: commitId,
                             line: comment.line,
-                            side: 'RIGHT'  // Comment on the new version
-                        });
+                            side: 'RIGHT'
+                        }));
                         postedCount++;
                     }
                 } catch (error) {
-                    console.warn(`⚠️  Could not post comment for ${comment.file}:${comment.line}: ${error.message}`);
+                    logger.warn(`Could not post comment for ${filePath || 'unknown'}:${comment.line}`, { error: error.message });
                 }
             }
             
             if (postedCount > 0) {
-                console.log(`✅ Posted ${postedCount} line-specific comments`);
+                logger.success(`Posted ${postedCount} line-specific comments`);
             } else {
-                console.log('ℹ️  No line-specific comments could be posted');
+                logger.info('No line-specific comments could be posted');
             }
         }
 
-        console.log('🎉 Successfully posted review to GitHub PR!');
+        logger.success('Successfully posted review to GitHub PR!');
         
     } catch (error) {
-        console.error(`⚠️  Failed to post comments to GitHub: ${error.message}`);
+        logger.error('Failed to post comments to GitHub', { error: error.message });
         // Don't fail the entire review if posting comments fails
     }
 }
@@ -193,23 +310,16 @@ async function main() {
     const params = parseArgs();
     
     try {
-        console.log('🚀 Starting AI Code Review...');
+        logger.info('Starting AI Code Review', { 
+            org: params.org, 
+            repo: params.repo, 
+            prNumber: params.pr,
+            outputFile: params.outputFile
+        });
         
-        // Validate inputs
+        // Validate inputs and environment
         validateInputs(params.org, params.repo, params.pr);
-        
-        // Check environment variables
-        if (!process.env.LLM_API_KEY) {
-            throw new Error('LLM_API_KEY environment variable is required');
-        }
-        
-        if (!process.env.LLM_ENDPOINT) {
-            throw new Error('LLM_ENDPOINT environment variable is required');
-        }
-        
-        if (!process.env.GITHUB_TOKEN) {
-            throw new Error('GITHUB_TOKEN environment variable is required');
-        }
+        validateEnvironment();
         
         // Get diff from GitHub API
         const diff = await getPullRequestDiff(params.org, params.repo, params.pr);
@@ -218,9 +328,15 @@ async function main() {
         const reviewer = new CodeReviewer();
         
         // Perform review with new API
-        console.log('🤖 Analyzing code with AI...');
+        logger.info('Analyzing code with AI', { diffSize: diff.length });
         const review = await reviewer.reviewChanges(diff, {
             generateSummary: true
+        });
+        
+        logger.info('AI analysis completed', {
+            summaryGenerated: !!review.summary,
+            commentCount: review.comments?.length || 0,
+            hunkCount: review.hunks?.length || 0
         });
         
         // Post review comments back to GitHub PR
@@ -240,10 +356,10 @@ async function main() {
         
         fs.writeFileSync(params.outputFile, JSON.stringify(result, null, 2));
         
-        console.log(`✅ Review completed! Results saved to ${params.outputFile}`);
+        logger.success(`Review completed! Results saved to ${params.outputFile}`);
         
     } catch (error) {
-        console.error(`❌ Error: ${error.message}`);
+        logger.error(`Review failed: ${error.message}`);
         
         // Write error result
         const errorResult = {
@@ -266,6 +382,7 @@ if (require.main === module) {
 module.exports = { 
     main, 
     validateInputs,
+    createOctokit,
     getPullRequestDiff,
     postReviewToGitHub
 };
