@@ -1,6 +1,25 @@
 # AI Code Reviewer - Jenkins Integration
 
-> **AI-powered code reviews for Jenkins using OpenAI**
+> **Automate intelligent code reviews in your Jenkins CI/CD pipeline using OpenAI**
+
+Add AI-powered code analysis to any Jenkins pipeline. Get detailed feedback on pull requests, security issues, and code quality automatically.
+
+## ✨ Features
+
+- 🤖 **AI-Powered Reviews** - OpenAI analyzes your code changes
+- 🔒 **Security Focused** - Input validation and injection prevention  
+- 📊 **Multiple Formats** - JSON, Markdown, or plain text output
+- ⚡ **Fast & Lightweight** - ~19KB package, minimal dependencies
+- 🔧 **Easy Integration** - Works with any Jenkins setup
+- 📝 **Detailed Reports** - Code quality, security, and improvement suggestions
+
+## 🎯 Use Cases
+
+- **Pull Request Reviews** - Automated feedback before merging
+- **Security Scanning** - Identify potential vulnerabilities  
+- **Code Quality Gates** - Enforce standards in CI/CD
+- **Developer Education** - Learn from AI suggestions
+- **Legacy Code Analysis** - Understand and improve existing code
 
 ## 🚀 Quick Start
 
@@ -10,13 +29,13 @@ npm install
 npm run build                    # Generates dist/ai-review-job/
 ```
 
-### 2. Share with QA Team
+### 2. Deploy Package
 ```bash
-# Send this package to your QA team:
+# Deploy this package to your Jenkins nodes:
 dist/ai-review-job/             # ← Simple job execution package
 ```
 
-### 3. QA Team Usage
+### 3. Usage
 
 #### Direct Usage:
 ```bash
@@ -52,13 +71,13 @@ pipeline {
 |---------|----------|------|---------|
 | **Job Package** | `dist/ai-review-job/` | ~19KB | Main executable + helper |
 
-**Ultra-simple:** Main executable + minimal helper, assumes pre-configured environment!
+**Ultra-simple:** Main executable + minimal helper, works with any Jenkins setup!
 
 ### Package Contents:
 - `ai-review` - Main executable script
 - `ai-security.js` - Security utilities helper
 
-## 🔧 Prerequisites (QA Team Setup)
+## 🔧 Prerequisites
 
 ### Jenkins Node Requirements
 Before using the AI review job, ensure each Jenkins node has:
@@ -105,7 +124,7 @@ Before using the AI review job, ensure each Jenkins node has:
 ```bash
 npm install                     # Setup
 npm test                        # Run tests
-npm run build                   # Build QA package (only thing needed)
+npm run build                   # Build Jenkins job package
 ```
 
 ## 📄 License
