@@ -83,22 +83,57 @@ pipeline {
 - `ai-review` - Main executable script
 - `ai-security.js` - Security utilities helper
 
-## 🔧 Jenkins Setup
+## 🔧 Jenkins Node Setup
 
-### Jenkins Node Requirements
-On each Jenkins node where the AI reviewer will run:
+### 1. Install Node.js (Required)
+Each Jenkins node needs Node.js 18+ installed:
 
-1. **Install Node.js dependencies:**
-   ```bash
-   npm install -g ai-reviewer-core commander dotenv
-   # OR install in a shared directory like /var/jenkins_home/node_modules/
-   ```
+#### Ubuntu/Debian:
+```bash
+# Install Node.js 18 LTS
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
 
-2. **Verify installation:**
-   ```bash
-   node --version    # Should be v18+
-   git --version     # Git is required for repository operations
-   ```
+# Verify installation
+node --version    # Should show v18.x.x or higher
+npm --version
+```
+
+#### RHEL/CentOS/Amazon Linux:
+```bash
+# Install Node.js 18 LTS  
+curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+sudo yum install -y nodejs
+
+# Verify installation
+node --version    # Should show v18.x.x or higher
+npm --version
+```
+
+#### Docker Jenkins:
+```dockerfile
+# Add to your Jenkins Dockerfile
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs
+```
+
+### 2. Install AI Reviewer Dependencies
+```bash
+# Install required npm packages globally
+npm install -g ai-reviewer-core commander dotenv
+
+# OR install in Jenkins workspace
+mkdir -p /var/jenkins_home/tools/ai-reviewer
+cd /var/jenkins_home/tools/ai-reviewer
+npm install ai-reviewer-core commander dotenv
+```
+
+### 3. Verify Setup
+```bash
+node --version    # Should be v18+
+git --version     # Git is required for repository operations
+npm list -g ai-reviewer-core    # Should show installed version
+```
 
 ### Jenkins Configuration
 
