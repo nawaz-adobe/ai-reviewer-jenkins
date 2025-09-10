@@ -40,10 +40,10 @@ export GITHUB_TOKEN="ghp_your_github_token_here"
 export LLM_API_KEY="sk-your_openai_key_here"  
 export LLM_ENDPOINT="https://api.openai.com/v1/chat/completions"
 
-# Optional: Test against specific repo (defaults to nawaz/ai-reviewer-mock on Adobe corporate GitHub)
+# Optional: Test against specific repo (defaults to nawaz/ai-reviewer-mock PR #1)
 export TEST_GITHUB_ORG="your-org"
 export TEST_GITHUB_REPO="your-test-repo"
-export TEST_GITHUB_PR="1"
+export TEST_GITHUB_PR="2"  # Default is PR #1 with comprehensive test case
 
 # Required for Adobe corporate GitHub (default test setup)
 export GITHUB_BASE_URL="https://git.corp.adobe.com/api/v3"
