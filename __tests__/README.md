@@ -36,7 +36,15 @@ To run integration tests with real GitHub API calls, set up environment variable
 
 ```bash
 # Required for integration tests
-export GITHUB_TOKEN="ghp_your_github_token_here"
+
+# Option 1: Personal Access Token (simpler for testing)
+export GITHUB_TOKEN="ghp_your_github_token_here"  # PAT with repo + write:discussion scopes
+
+# Option 2: GitHub App (better for production) 
+# export GITHUB_APP_ID="123456"
+# export GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+# export GITHUB_INSTALLATION_ID="12345678"
+
 export LLM_API_KEY="sk-your_openai_key_here"  
 export LLM_ENDPOINT="https://api.openai.com/v1/chat/completions"
 
@@ -126,6 +134,43 @@ npx jest -t "should validate PR number format"
 # Debug integration test with credentials
 GITHUB_TOKEN=ghp_xxx LLM_API_KEY=sk_xxx LLM_ENDPOINT=https://api.openai.com/v1/chat/completions \
 npx jest --verbose __tests__/integration/github-api.test.js
+```
+
+## GitHub Authentication
+
+### Personal Access Token (PAT) - Simple Testing
+
+**For Adobe Corporate GitHub:**
+1. Go to: `https://git.corp.adobe.com/settings/tokens`
+2. Generate new token
+3. **Required scopes:**
+   - `repo` (for private repositories)
+   - `write:discussion` (for posting comments)
+   - `pull_requests` (for PR reviews)
+
+**Pros:** ✅ Simple setup, works immediately  
+**Cons:** ⚠️ Acts as your user, broad permissions, token expires
+
+### GitHub App - Production Ready
+
+**Setup Steps:**
+1. Create GitHub App in your organization settings
+2. **Required permissions:**
+   - **Pull requests**: Read & Write
+   - **Issues**: Write (for comments)  
+   - **Repository contents**: Read (for diff access)
+3. Install app on target repositories
+4. Get App ID, Private Key, and Installation ID
+
+**Pros:** ✅ Fine-grained permissions, better security, no expiration  
+**Cons:** ⚠️ More complex setup
+
+**Environment Variables:**
+```bash
+# GitHub App authentication
+export GITHUB_APP_ID="123456"
+export GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+export GITHUB_INSTALLATION_ID="12345678"
 ```
 
 ## CI/CD Integration
