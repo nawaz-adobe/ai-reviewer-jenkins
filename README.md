@@ -61,21 +61,60 @@ Posts AI review feedback as PR comments and summary. Set `POST_COMMENTS=false` t
 
 ## 🔐 Authentication Setup
 
-### GitHub App (Required)
-1. Create GitHub App in your organization settings
-2. **Permissions:** Pull requests (Read & Write), Issues (Write), Contents (Read)
-3. Install on target repositories
-4. Configure Jenkins credentials:
-   - `github-app-id` - Your GitHub App ID
-   - `github-app-private-key` - Private key (PEM format)
-   - `github-app-installation-id` - Installation ID
-   - `github-base-url` - API endpoint (enterprise GitHub)
+### GitHub App Setup (Required)
+
+#### 1. Create GitHub App
+Navigate to your organization settings:
+```
+https://git.corp.adobe.com/organizations/YOUR_ORG/settings/apps
+```
+
+Click "New GitHub App" and configure:
+- **Name:** `CodeWhisperer` (or any name you prefer)
+- **Description:** AI code reviewer for automated PR analysis
+- **Homepage URL:** Your repository URL
+- **Webhook:** Uncheck "Active" (not needed for Jenkins polling)
+
+#### 2. Set Permissions
+**Repository Permissions:**
+- **Contents:** Read (to access PR diffs)
+- **Issues:** Write (to post PR comments)
+- **Pull requests:** Read & Write (to read PRs and post comments)
+- **Metadata:** Read (basic repository access)
+
+**Organization/User Permissions:** Leave as "No access"
+
+#### 3. Generate Private Key
+1. After creating the app, go to "Private keys" section
+2. Click "Generate a private key" 
+3. Download the `.pem` file and save it securely
+4. Note your **App ID** (displayed at top of app settings page)
+
+#### 4. Install App
+1. Click "Install App" in left sidebar
+2. Choose your organization
+3. Select "Selected repositories" and add:
+   - Target repositories for code review
+   - Test repository (e.g., `ai-reviewer-mock`)
+4. Click "Install"
+
+#### 5. Get Installation ID
+After installation, you'll see a URL like:
+```
+https://git.corp.adobe.com/settings/installations/12345678
+```
+The number `12345678` is your **Installation ID**.
+
+#### 6. Configure Jenkins Credentials
+Add these credentials in Jenkins (Manage → Credentials):
+- `github-app-id` - Your GitHub App ID
+- `github-app-private-key` - Contents of the `.pem` file
+- `github-app-installation-id` - Installation ID from step 5
+- `github-base-url` - `https://git.corp.adobe.com/api/v3` (enterprise) or `https://api.github.com` (public)
 
 ### OpenAI Setup
 - `llm-api-key` - Your OpenAI API key
 - `llm-endpoint` - `https://api.openai.com/v1/chat/completions`
-
-> **📖 Detailed Setup:** See [GITHUB_APP_SETUP.md](./GITHUB_APP_SETUP.md)
 
 ## 🔧 Node.js Setup
 

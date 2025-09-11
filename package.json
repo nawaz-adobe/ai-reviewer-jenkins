@@ -7,7 +7,7 @@
     "ai-reviewer": "dist/jenkins-reviewer.js"
   },
   "scripts": {
-    "build": "node scripts/build-team-package.js",
+    "build": "node scripts/build-package.js",
     "test": "jest",
     "test:unit": "jest __tests__/unit",
     "test:integration": "jest __tests__/integration",
