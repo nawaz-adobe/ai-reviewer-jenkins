@@ -17,7 +17,23 @@ const srcDir = path.join(__dirname, '..', 'src');
 
 // Clean and create
 if (fs.existsSync(distDir)) {
-    fs.rmSync(distDir, { recursive: true });
+    // Use recursive deletion compatible with Node.js 12
+    const rimraf = (dir) => {
+        if (fs.existsSync(dir)) {
+            const files = fs.readdirSync(dir);
+            files.forEach(file => {
+                const filePath = path.join(dir, file);
+                const stat = fs.statSync(filePath);
+                if (stat.isDirectory()) {
+                    rimraf(filePath);
+                } else {
+                    fs.unlinkSync(filePath);
+                }
+            });
+            fs.rmdirSync(dir);
+        }
+    };
+    rimraf(distDir);
 }
 fs.mkdirSync(jobDir, { recursive: true });
 
