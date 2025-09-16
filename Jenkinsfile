@@ -11,11 +11,6 @@ pipeline {
         GITHUB_APP_ID = credentials('github-app-id')
         GITHUB_APP_PRIVATE_KEY = credentials('github-app-private-key')
         GITHUB_INSTALLATION_ID = credentials('github-app-installation-id')
-        GITHUB_BASE_URL = credentials('github-base-url')
-        
-        // Build Configuration
-        AI_REVIEWER_PATH = '/opt/ai-reviewer/ai-review-job'
-        REVIEW_RESULTS_FILE = 'review-results.json'
     }
     
     parameters {
@@ -52,6 +47,16 @@ pipeline {
     }
     
     stages {
+        stage('Setup Environment') {
+            steps {
+                script {
+                    // Set GitHub base URL with default value
+                    env.GITHUB_BASE_URL = env.GITHUB_BASE_URL ?: 'https://api.github.com'
+                    echo "GitHub Base URL: ${env.GITHUB_BASE_URL}"
+                }
+            }
+        }
+        
         stage('Validate Parameters') {
             steps {
                 script {
@@ -76,13 +81,14 @@ pipeline {
         stage('Check AI Reviewer Installation') {
             steps {
                 script {
-                    def aiReviewerExists = fileExists("${AI_REVIEWER_PATH}/ai-review")
+                    def aiReviewerPath = '/opt/ai-reviewer/ai-review-job'
+                    def aiReviewerExists = fileExists("${aiReviewerPath}/ai-review")
                     if (!aiReviewerExists) {
-                        error("AI Reviewer not found at ${AI_REVIEWER_PATH}/ai-review. Please ensure it's installed.")
+                        error("AI Reviewer not found at ${aiReviewerPath}/ai-review. Please ensure it's installed.")
                     }
                     
                     // Check if executable
-                    sh "test -x ${AI_REVIEWER_PATH}/ai-review"
+                    sh "test -x ${aiReviewerPath}/ai-review"
                     echo "AI Reviewer found and executable"
                 }
             }
@@ -91,17 +97,18 @@ pipeline {
         stage('AI Code Review') {
             steps {
                 script {
-                    def outputFile = params.CUSTOM_OUTPUT_FILE ?: REVIEW_RESULTS_FILE
+                    def aiReviewerPath = '/opt/ai-reviewer/ai-review-job'
+                    def outputFile = params.CUSTOM_OUTPUT_FILE ?: 'review-results.json'
                     def dryRunFlag = params.DRY_RUN ? '--dry-run' : ''
                     def noCommentsFlag = params.SKIP_COMMENTS ? '--no-comments' : ''
                     
-                    echo "🤖 Starting AI Code Review..."
+                    echo "Starting AI Code Review..."
                     echo "Target: ${params.ORG_NAME}/${params.REPO_NAME} PR #${params.PR_NUMBER}"
                     echo "Output: ${outputFile}"
                     
                     try {
                         sh """
-                            ${AI_REVIEWER_PATH}/ai-review \\
+                            ${aiReviewerPath}/ai-review \\
                                 "${params.ORG_NAME}" \\
                                 "${params.REPO_NAME}" \\
                                 "${params.PR_NUMBER}" \\
@@ -123,7 +130,7 @@ pipeline {
         stage('Process Review Results') {
             steps {
                 script {
-                    def outputFile = params.CUSTOM_OUTPUT_FILE ?: REVIEW_RESULTS_FILE
+                    def outputFile = params.CUSTOM_OUTPUT_FILE ?: 'review-results.json'
                     
                     if (fileExists(outputFile)) {
                         echo "📊 Processing review results..."
@@ -133,10 +140,10 @@ pipeline {
                         
                         if (reviewData.success) {
                             echo "✅ Review Status: SUCCESS"
-                            echo "📝 Summary: ${reviewData.summary ?: 'No summary available'}"
-                            echo "💬 Comments: ${reviewData.comments?.size() ?: 0}"
-                            echo "🔍 Hunks: ${reviewData.hunks?.size() ?: 0}"
-                            echo "⏰ Timestamp: ${reviewData.timestamp}"
+                            echo "Summary: ${reviewData.summary ?: 'No summary available'}"
+                            echo "Comments: ${reviewData.comments?.size() ?: 0}"
+                            echo "Hunks: ${reviewData.hunks?.size() ?: 0}"
+                            echo "Timestamp: ${reviewData.timestamp}"
                         } else {
                             echo "❌ Review Status: FAILED"
                             echo "Error: ${reviewData.error}"
@@ -153,11 +160,11 @@ pipeline {
         stage('Archive Results') {
             steps {
                 script {
-                    def outputFile = params.CUSTOM_OUTPUT_FILE ?: REVIEW_RESULTS_FILE
+                    def outputFile = params.CUSTOM_OUTPUT_FILE ?: 'review-results.json'
                     
                     if (fileExists(outputFile)) {
                         archiveArtifacts artifacts: outputFile, allowEmptyArchive: true
-                        echo "📦 Review results archived: ${outputFile}"
+                        echo "Review results archived: ${outputFile}"
                     }
                 }
             }
@@ -166,24 +173,7 @@ pipeline {
     
     post {
         always {
-            script {
-                def outputFile = params.CUSTOM_OUTPUT_FILE ?: REVIEW_RESULTS_FILE
-                
-                // Clean up sensitive files
-                sh "rm -f .env || true"
-                
-                // Display final status
-                if (fileExists(outputFile)) {
-                    def reviewData = readJSON file: outputFile
-                    if (reviewData.success) {
-                        echo "🎉 AI Code Review completed successfully!"
-                        echo "📊 Review Summary: ${reviewData.summary ?: 'No summary'}"
-                    } else {
-                        echo "⚠️ AI Code Review completed with issues"
-                        echo "❌ Error: ${reviewData.error}"
-                    }
-                }
-            }
+            echo "AI Code Review pipeline completed"
         }
         
         success {
