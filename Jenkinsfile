@@ -51,7 +51,7 @@ pipeline {
             steps {
                 script {
                     // Set GitHub base URL with default value
-                    env.GITHUB_BASE_URL = env.GITHUB_BASE_URL ?: 'https://api.github.com'
+                    env.GITHUB_BASE_URL = env.GITHUB_BASE_URL ?: 'https://git.corp.adobe.com/api/v3'
                     echo "GitHub Base URL: ${env.GITHUB_BASE_URL}"
                 }
             }
