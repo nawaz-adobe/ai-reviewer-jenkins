@@ -16,17 +16,17 @@ pipeline {
     parameters {
         string(
             name: 'ORG_NAME',
-            defaultValue: '',
+            defaultValue: 'torq',
             description: 'GitHub organization/owner name'
         )
         string(
             name: 'REPO_NAME', 
-            defaultValue: '',
+            defaultValue: 'torq-native',
             description: 'Repository name'
         )
         string(
             name: 'PR_NUMBER',
-            defaultValue: '',
+            defaultValue: '8889',
             description: 'Pull request number to review'
         )
         booleanParam(
@@ -57,6 +57,34 @@ pipeline {
             }
         }
         
+        stage('Build AI Reviewer Tool') {
+            steps {
+                script {
+                    echo "🔨 Building AI Reviewer tool from source..."
+                    
+                    // Check if Node.js is available
+                    sh 'node --version'
+                    sh 'npm --version'
+                    
+                    // Install dependencies
+                    echo "📦 Installing dependencies..."
+                    sh 'npm ci || npm install'
+                    
+                    // Build the tool
+                    echo "🏗️  Building the tool..."
+                    sh 'npm run build'
+                    
+                    // Verify the build
+                    if (fileExists('dist/ai-review-job/ai-review')) {
+                        sh 'chmod +x dist/ai-review-job/ai-review'
+                        echo "✅ AI Reviewer tool built successfully"
+                    } else {
+                        error("Build failed: ai-review executable not found in dist/ai-review-job/")
+                    }
+                }
+            }
+        }
+        
         stage('Validate Parameters') {
             steps {
                 script {
@@ -78,18 +106,18 @@ pipeline {
             }
         }
         
-        stage('Check AI Reviewer Installation') {
+        stage('Verify AI Reviewer Build') {
             steps {
                 script {
-                    def aiReviewerPath = '/opt/ai-reviewer/ai-review-job'
+                    def aiReviewerPath = 'dist/ai-review-job'
                     def aiReviewerExists = fileExists("${aiReviewerPath}/ai-review")
                     if (!aiReviewerExists) {
-                        error("AI Reviewer not found at ${aiReviewerPath}/ai-review. Please ensure it's installed.")
+                        error("AI Reviewer not found at ${aiReviewerPath}/ai-review. Build may have failed.")
                     }
                     
                     // Check if executable
                     sh "test -x ${aiReviewerPath}/ai-review"
-                    echo "AI Reviewer found and executable"
+                    echo "AI Reviewer found and executable at ${aiReviewerPath}/ai-review"
                 }
             }
         }
@@ -97,7 +125,7 @@ pipeline {
         stage('AI Code Review') {
             steps {
                 script {
-                    def aiReviewerPath = '/opt/ai-reviewer/ai-review-job'
+                    def aiReviewerPath = 'dist/ai-review-job'
                     def outputFile = params.CUSTOM_OUTPUT_FILE ?: 'review-results.json'
                     def dryRunFlag = params.DRY_RUN ? '--dry-run' : ''
                     def noCommentsFlag = params.SKIP_COMMENTS ? '--no-comments' : ''
@@ -108,7 +136,7 @@ pipeline {
                     
                     try {
                         sh """
-                            ${aiReviewerPath}/ai-review \\
+                            ./${aiReviewerPath}/ai-review \\
                                 "${params.ORG_NAME}" \\
                                 "${params.REPO_NAME}" \\
                                 "${params.PR_NUMBER}" \\

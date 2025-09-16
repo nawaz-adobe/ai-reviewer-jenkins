@@ -11,6 +11,24 @@ const { createAppAuth } = require('@octokit/auth-app');
 const { CodeReviewer } = require('ai-reviewer-core');
 const { Command } = require('commander');
 
+// Compatibility layer for older Node.js versions
+// Safe property access that works across all Node.js versions
+function safeGet(obj, path, defaultValue = undefined) {
+    if (obj == null) return defaultValue;
+    const keys = path.split('.');
+    let current = obj;
+    for (const key of keys) {
+        if (current == null || typeof current !== 'object') return defaultValue;
+        current = current[key];
+    }
+    return current !== undefined ? current : defaultValue;
+}
+
+// Safe array length check
+function safeLength(arr) {
+    return Array.isArray(arr) ? arr.length : 0;
+}
+
 // Simple logging utility
 const logger = {
     info: (message, data = {}) => console.log(`ℹ️  ${message}`, Object.keys(data).length ? data : ''),
@@ -226,8 +244,8 @@ async function postReviewToGitHub(org, repo, prNumber, review) {
         org, 
         repo, 
         prNumber,
-        summaryLength: review.summary?.length || 0,
-        commentCount: review.comments?.length || 0
+        summaryLength: safeGet(review, 'summary.length') || 0,
+        commentCount: safeLength(review.comments)
     });
     
     try {
@@ -335,8 +353,8 @@ async function main() {
         
         logger.info('AI analysis completed', {
             summaryGenerated: !!review.summary,
-            commentCount: review.comments?.length || 0,
-            hunkCount: review.hunks?.length || 0
+            commentCount: safeLength(review.comments),
+            hunkCount: safeLength(review.hunks)
         });
         
         // Post review comments back to GitHub PR
