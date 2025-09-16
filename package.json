@@ -17,8 +17,8 @@
     "update-core": "npm update ai-reviewer-core"
   },
   "dependencies": {
-    "@octokit/auth-app": "^8.1.0",
-    "@octokit/rest": "^22.0.0",
+    "@octokit/auth-app": "^4.0.11",
+    "@octokit/rest": "^18.12.0",
     "ai-reviewer-core": "^1.1.0",
     "commander": "^11.0.0",
     "dotenv": "^16.0.3"
