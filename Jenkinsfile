@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent { label 'uxp-mac-1' }
     
     environment {
         // AI Reviewer Configuration
