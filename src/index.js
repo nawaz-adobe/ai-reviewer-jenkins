@@ -48,6 +48,10 @@ function validateEnvironment() {
     };
     
     for (const [envVar, description] of Object.entries(required)) {
+        
+      logger.info('envVar', envVar);
+      logger.info('description', description);
+      logger.info('process.env[envVar]', process.env[envVar]);
         if (!process.env[envVar]) {
             throw new Error(`${envVar} environment variable is required (${description})`);
         }
