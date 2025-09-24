@@ -115,6 +115,25 @@ function validateInputs(org, repo, pr) {
     }
 }
 
+
+function getPrivateKey() {
+    let privateKey = process.env.GITHUB_APP_PRIVATE_KEY;
+    
+    if (privateKey && !privateKey.includes('BEGIN') && !privateKey.includes('\n')) {
+        try {
+            // Try to read the file
+            if (fs.existsSync(privateKey)) {
+                logger.info('Reading private key from file path provided by Jenkins');
+                privateKey = fs.readFileSync(privateKey, 'utf8');
+            }
+        } catch (error) {
+            logger.warn('Failed to read private key as file, using value as-is', { error: error.message });
+        }
+    }
+    
+    return privateKey;
+}
+
 // Create authenticated Octokit instance using GitHub App
 function createOctokit() {
     const githubBaseUrl = process.env.GITHUB_BASE_URL || 'https://api.github.com';
@@ -126,7 +145,7 @@ function createOctokit() {
         authStrategy: createAppAuth,
         auth: {
             appId: process.env.GITHUB_APP_ID,
-            privateKey: process.env.GITHUB_APP_PRIVATE_KEY,
+            privateKey: getPrivateKey(),
             installationId: process.env.GITHUB_INSTALLATION_ID,
         },
     });

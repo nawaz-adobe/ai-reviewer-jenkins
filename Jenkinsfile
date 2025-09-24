@@ -2,15 +2,10 @@ pipeline {
     agent { label 'uxp-mac-1' }
     
     environment {
-        // AI Reviewer Configuration
-        LLM_API_KEY = credentials('llm-api-key')
-        LLM_ENDPOINT = credentials('llm-endpoint')
+        // Non-sensitive configuration
         POST_COMMENTS = 'true'
-        
-        // GitHub App Authentication
-        GITHUB_APP_ID = credentials('github-app-id')
-        GITHUB_APP_PRIVATE_KEY = credentials('github-app-private-key')
-        GITHUB_INSTALLATION_ID = credentials('github-app-installation-id')
+        // GitHub base URL can remain here as it's not sensitive
+        GITHUB_BASE_URL = 'https://git.corp.adobe.com/api/v3'
     }
     
     parameters {
@@ -50,8 +45,6 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 script {
-                    // Set GitHub base URL with default value
-                    env.GITHUB_BASE_URL = env.GITHUB_BASE_URL ?: 'https://git.corp.adobe.com/api/v3'
                     echo "GitHub Base URL: ${env.GITHUB_BASE_URL}"
                 }
             }
@@ -124,32 +117,41 @@ pipeline {
         
         stage('AI Code Review') {
             steps {
-                script {
-                    def aiReviewerPath = 'dist/ai-review-job'
-                    def outputFile = params.CUSTOM_OUTPUT_FILE ?: 'review-results.json'
-                    def dryRunFlag = params.DRY_RUN ? '--dry-run' : ''
-                    def noCommentsFlag = params.SKIP_COMMENTS ? '--no-comments' : ''
-                    
-                    echo "Starting AI Code Review..."
-                    echo "Target: ${params.ORG_NAME}/${params.REPO_NAME} PR #${params.PR_NUMBER}"
-                    echo "Output: ${outputFile}"
-                    
-                    try {
-                        sh """
-                            ./${aiReviewerPath}/ai-review \\
-                                "${params.ORG_NAME}" \\
-                                "${params.REPO_NAME}" \\
-                                "${params.PR_NUMBER}" \\
-                                --output "${outputFile}" \\
-                                ${dryRunFlag} \\
-                                ${noCommentsFlag}
-                        """
+                // Use withCredentials to securely inject credentials
+                withCredentials([
+                    string(credentialsId: 'llm-api-key', variable: 'LLM_API_KEY'),
+                    string(credentialsId: 'llm-endpoint', variable: 'LLM_ENDPOINT'),
+                    string(credentialsId: 'github-app-id', variable: 'GITHUB_APP_ID'),
+                    file(credentialsId: 'github-app-private-key', variable: 'GITHUB_APP_PRIVATE_KEY'),
+                    string(credentialsId: 'github-app-installation-id', variable: 'GITHUB_INSTALLATION_ID')
+                ]) {
+                    script {
+                        def aiReviewerPath = 'dist/ai-review-job'
+                        def outputFile = params.CUSTOM_OUTPUT_FILE ?: 'review-results.json'
+                        def dryRunFlag = params.DRY_RUN ? '--dry-run' : ''
+                        def noCommentsFlag = params.SKIP_COMMENTS ? '--no-comments' : ''
                         
-                        echo "AI Code Review completed successfully"
+                        echo "Starting AI Code Review..."
+                        echo "Target: ${params.ORG_NAME}/${params.REPO_NAME} PR #${params.PR_NUMBER}"
+                        echo "Output: ${outputFile}"
                         
-                    } catch (Exception e) {
-                        echo "❌ AI Code Review failed: ${e.getMessage()}"
-                        currentBuild.result = 'UNSTABLE'
+                        try {
+                            sh """
+                                ./${aiReviewerPath}/ai-review \\
+                                    "${params.ORG_NAME}" \\
+                                    "${params.REPO_NAME}" \\
+                                    "${params.PR_NUMBER}" \\
+                                    --output "${outputFile}" \\
+                                    ${dryRunFlag} \\
+                                    ${noCommentsFlag}
+                            """
+                            
+                            echo "AI Code Review completed successfully"
+                            
+                        } catch (Exception e) {
+                            echo "❌ AI Code Review failed: ${e.getMessage()}"
+                            currentBuild.result = 'UNSTABLE'
+                        }
                     }
                 }
             }
