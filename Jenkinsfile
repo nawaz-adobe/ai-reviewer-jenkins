@@ -21,7 +21,7 @@ pipeline {
         )
         string(
             name: 'PR_NUMBER',
-            defaultValue: '8889',
+            defaultValue: '8891',
             description: 'Pull request number to review'
         )
         booleanParam(
