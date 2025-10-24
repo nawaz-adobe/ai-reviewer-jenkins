@@ -35,5 +35,5 @@ if (process.env.JEST_VERBOSE) {
     console.log('📍 LLM API Key:', process.env.LLM_API_KEY ? '✅ Present' : '❌ Missing');
     console.log('📍 LLM Endpoint:', process.env.LLM_ENDPOINT ? '✅ Present' : '❌ Missing');
     console.log('📍 GitHub Base URL:', process.env.GITHUB_BASE_URL || '(default)');
-    console.log('📍 Test Repo:', `${process.env.TEST_GITHUB_ORG || 'nawaz-adobe'}/${process.env.TEST_GITHUB_REPO || 'ai-reviewer-test'}`);
+    console.log('📍 Test Repo:', `${process.env.TEST_GITHUB_ORG || 'farhann1'}/${process.env.TEST_GITHUB_REPO || 'ai-reviewer-test'}`);
 }

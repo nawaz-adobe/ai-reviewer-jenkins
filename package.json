@@ -42,7 +42,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/ai-reviewer-jenkins.git"
+    "url": "https://github.com/farhann1/ai-reviewer-jenkins.git"
   },
   "jest": {
     "testEnvironment": "node",
